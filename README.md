@@ -188,3 +188,39 @@ These are planned capabilities and should not be interpreted as features already
 
 Prepared for **AIORI Hackathon 3**  
 Team: `A3-PS032-TC538`
+
+## Current Prototype: Observation Limits
+
+The current prototype processes a RIPE Stat BGP update sample and reconstructs
+observed route-event sequences. The current analysis covers 266 events for the
+selected prefix and observation window. It does not yet implement historical,
+time-aligned RPKI validation-state correlation.
+
+Interpret results within the following limits:
+
+- **Collector coverage:** The dataset contains observations returned by the
+  selected data source. It does not represent every network or routing
+  collector on the Internet.
+- **Withdrawals and reachability:** A withdrawal observed at one source does
+  not establish that the prefix became globally unreachable. Missing route
+  observations can also reflect measurement coverage or incomplete data.
+- **Announcements after withdrawals:** These indicate a temporal sequence in
+  the observed event stream. They do not, by themselves, prove end-to-end
+  recovery or restored service.
+- **AS-path changes:** A changed observed AS path is a routing observation.
+  It does not establish that an RPKI state change caused the change.
+- **Historical RPKI state:** Current RPKI validation status must not be treated
+  as the historical status at the time of a past BGP event. Historical
+  correlation requires validation data aligned with the event timestamps.
+- **Missing or malformed paths:** An absent or invalid AS path limits what can
+  be inferred from that event. It must not be interpreted as proof that no
+  route existed in reality.
+- **Event-window boundaries:** A withdrawal without a previously tracked route
+  means no active route was tracked for that prefix/source pair in the
+  processed event history. It does not prove that no route existed before the
+  observation window or elsewhere.
+
+The current event reconstruction therefore describes observed BGP event
+sequences, not proven global reachability outcomes or causal effects of RPKI
+state changes. Historical RPKI correlation and broader reachability analysis
+remain future evaluation tasks.

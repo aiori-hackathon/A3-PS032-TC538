@@ -53,9 +53,21 @@ def main():
         }
         events_by_source[f"{prefix}|{source}"].append(event)
 
+
         if event_type == "A":
-            if isinstance(path, list):
+            valid_path = (
+                isinstance(path, list)
+                and all(
+                    isinstance(asn, int)
+                    and not isinstance(asn, bool)
+                    and asn > 0
+                    for asn in path
+                )
+            )
+
+            if valid_path:
                 old_path = current_path.get(key)
+
                 if old_path is not None and old_path != path:
                     sequences.append({
                         "sequence_type": "announced_path_changed",
@@ -67,15 +79,38 @@ def main():
                     })
 
                 current_path[key] = path
+            else:
+                # Do not retain stale route state after an announcement
+                # whose AS path is missing or malformed.
+                current_path.pop(key, None)
+
+                sequences.append({
+                    "sequence_type": "announcement_invalid_path",
+                    "timestamp": timestamp,
+                    "prefix": prefix,
+                    "source_id": source,
+                    "as_path": path,
+                    "reason": (
+                        "missing_or_non_list_path"
+                        if not isinstance(path, list)
+                        else "invalid_asn_entries"
+                    ),
+                })
 
             previous_event[key] = event
 
         elif event_type == "W":
+            had_tracked_route = key in current_path
             last_path = current_path.pop(key, None)
             prior = previous_event.get(key)
 
             sequences.append({
                 "sequence_type": "withdrawal_observed",
+                "withdrawal_classification": (
+                    "withdrawal_with_tracked_route"
+                    if had_tracked_route
+                    else "withdrawal_without_tracked_route"
+                ),
                 "timestamp": timestamp,
                 "prefix": prefix,
                 "source_id": source,
@@ -160,7 +195,7 @@ def main():
     print(f"Observed path changes:            "
           f"{summary['observed_path_change_count']}")
     print(f"Announcements after withdrawals:  {len(reannouncements)}")
-    print(f"Output:                           {OUT.relative_to(ROOT)}")
+    print(f"Output:                           {OUT}")
 
     if reannouncements:
         print("\nFirst announcement-after-withdrawal sequence:")

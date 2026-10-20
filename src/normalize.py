@@ -1,4 +1,4 @@
-﻿"""Normalize historical RIPE Stat BGP-state JSON into route records."""
+"""Normalize historical RIPE Stat BGP-state JSON into route records."""
 
 import json
 from pathlib import Path
@@ -8,7 +8,17 @@ RAW_DIR = ROOT / "data" / "raw"
 PROCESSED_DIR = ROOT / "data" / "processed"
 
 
+def find_snapshot_files() -> list[Path]:
+    """Return BGP snapshot files, excluding BGP update-event files."""
+    return sorted(
+        path
+        for path in RAW_DIR.glob("bgp_*.json")
+        if not path.name.startswith("bgp_updates_")
+    )
+
+
 def normalize_bgp_file(input_path: Path) -> list[dict]:
+    """Convert a RIPE Stat BGP-state response into normalized route records."""
     payload = json.loads(input_path.read_text(encoding="utf-8"))
     data = payload.get("data", {})
 
@@ -38,10 +48,12 @@ def normalize_bgp_file(input_path: Path) -> list[dict]:
 def main() -> None:
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
-    input_files = sorted(RAW_DIR.glob("bgp_*.json"))
+    input_files = find_snapshot_files()
+
     if not input_files:
         raise SystemExit(
-            "No BGP JSON files found in data/raw/. Run src/ingest.py first."
+            "No BGP snapshot JSON files found in data/raw/. "
+            "Run src/ingest.py first."
         )
 
     total = 0

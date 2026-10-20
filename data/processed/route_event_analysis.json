@@ -48,6 +48,7 @@
   "sequences": [
     {
       "sequence_type": "withdrawal_observed",
+      "withdrawal_classification": "withdrawal_without_tracked_route",
       "timestamp": "2024-12-20T00:00:30",
       "prefix": "193.0.0.0/21",
       "source_id": "03-193.239.117.32",
@@ -57,6 +58,7 @@
     },
     {
       "sequence_type": "withdrawal_observed",
+      "withdrawal_classification": "withdrawal_without_tracked_route",
       "timestamp": "2024-12-20T00:07:31",
       "prefix": "193.0.0.0/21",
       "source_id": "19-196.60.8.44",
@@ -120,6 +122,7 @@
     },
     {
       "sequence_type": "withdrawal_observed",
+      "withdrawal_classification": "withdrawal_with_tracked_route",
       "timestamp": "2024-12-20T23:00:41",
       "prefix": "193.0.0.0/21",
       "source_id": "21-37.49.232.1",
@@ -919,6 +922,7 @@
     },
     {
       "sequence_type": "withdrawal_observed",
+      "withdrawal_classification": "withdrawal_with_tracked_route",
       "timestamp": "2024-12-21T16:06:24",
       "prefix": "193.0.0.0/21",
       "source_id": "03-193.239.117.32",
