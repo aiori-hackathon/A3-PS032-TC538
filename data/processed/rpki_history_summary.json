@@ -1,0 +1,89 @@
+{
+  "data_source": "RIPE NCC RPKI archive snapshots",
+  "method": "Origin validation against each daily snapshot",
+  "scope": {
+    "prefix": "193.0.0.0/21",
+    "origin_as": 3333,
+    "dates": [
+      "2024-12-20",
+      "2024-12-21",
+      "2024-12-22",
+      "2024-12-23"
+    ]
+  },
+  "snapshots": [
+    {
+      "snapshot_file": "roas_2024-12-20.csv.xz",
+      "snapshot_time": "2024-12-20 00:00:00",
+      "target_prefix": "193.0.0.0/21",
+      "observed_origin_as": 3333,
+      "validation_state": "Valid",
+      "usable_vrp_count": 273694,
+      "matching_exact_prefix_vrps": [
+        {
+          "prefix": "193.0.0.0/21",
+          "asn": 3333,
+          "max_length": 21,
+          "not_before": "2024-01-02 02:31:29",
+          "not_after": "2025-07-01 00:00:00"
+        }
+      ]
+    },
+    {
+      "snapshot_file": "roas_2024-12-21.csv.xz",
+      "snapshot_time": "2024-12-21 00:00:00",
+      "target_prefix": "193.0.0.0/21",
+      "observed_origin_as": 3333,
+      "validation_state": "Valid",
+      "usable_vrp_count": 273196,
+      "matching_exact_prefix_vrps": [
+        {
+          "prefix": "193.0.0.0/21",
+          "asn": 3333,
+          "max_length": 21,
+          "not_before": "2024-01-02 02:31:29",
+          "not_after": "2025-07-01 00:00:00"
+        }
+      ]
+    },
+    {
+      "snapshot_file": "roas_2024-12-22.csv.xz",
+      "snapshot_time": "2024-12-22 00:00:00",
+      "target_prefix": "193.0.0.0/21",
+      "observed_origin_as": 3333,
+      "validation_state": "Valid",
+      "usable_vrp_count": 273209,
+      "matching_exact_prefix_vrps": [
+        {
+          "prefix": "193.0.0.0/21",
+          "asn": 3333,
+          "max_length": 21,
+          "not_before": "2024-01-02 02:31:29",
+          "not_after": "2025-07-01 00:00:00"
+        }
+      ]
+    },
+    {
+      "snapshot_file": "roas_2024-12-23.csv.xz",
+      "snapshot_time": "2024-12-23 00:00:00",
+      "target_prefix": "193.0.0.0/21",
+      "observed_origin_as": 3333,
+      "validation_state": "Valid",
+      "usable_vrp_count": 273008,
+      "matching_exact_prefix_vrps": [
+        {
+          "prefix": "193.0.0.0/21",
+          "asn": 3333,
+          "max_length": 21,
+          "not_before": "2024-01-02 02:31:29",
+          "not_after": "2025-07-01 00:00:00"
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Snapshot states do not establish continuous validation state between snapshots.",
+    "BGP observations do not establish global reachability.",
+    "Correlation alone does not establish that RPKI caused a routing change."
+  ]
+}
