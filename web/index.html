@@ -1,0 +1,2261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<!-- Zero-Flash Theme Initialization Script (Runs synchronously before render) -->
+<script>
+  (function() {
+    try {
+      var theme = 'light';
+      var hash = window.location.hash || '';
+      var m = hash.match(/theme=(dark|light)/);
+      if (m) {
+        theme = m[1];
+      } else {
+        var saved = localStorage.getItem('pathwatch_theme');
+        if (saved === 'dark' || saved === 'light') {
+          theme = saved;
+        } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          theme = 'dark';
+        }
+      }
+      document.documentElement.setAttribute('data-theme', theme);
+      document.documentElement.style.colorScheme = theme;
+    } catch (e) {}
+  })();
+</script>
+<title>PathWatch — Historical BGP &amp; RPKI Route Telemetry</title>
+<!-- Offline-safe vendored fonts and Tailwind -->
+<link href="vendor/fonts.css" rel="stylesheet">
+<script src="vendor/tailwind.js"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          canvas: "rgb(var(--c-canvas) / <alpha-value>)",
+          surface: "rgb(var(--c-surface) / <alpha-value>)",
+          ink: "rgb(var(--c-ink) / <alpha-value>)",
+          "ink-2": "rgb(var(--c-ink-2) / <alpha-value>)",
+          "ink-3": "rgb(var(--c-ink-3) / <alpha-value>)",
+          line: "rgb(var(--c-line) / <alpha-value>)",
+          "line-2": "rgb(var(--c-line-2) / <alpha-value>)",
+          accent: "rgb(var(--c-accent) / <alpha-value>)",
+          teal: "rgb(var(--c-teal) / <alpha-value>)",
+          ok: "rgb(var(--c-ok) / <alpha-value>)",
+          bad: "rgb(var(--c-bad) / <alpha-value>)",
+          warn: "rgb(var(--c-warn) / <alpha-value>)",
+          "table-header": "rgb(var(--c-table-header) / <alpha-value>)",
+          "table-bg": "rgb(var(--c-table-bg) / <alpha-value>)",
+        },
+        fontFamily: {
+          sans: ['var(--font-sans)', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
+          mono: ['var(--font-mono)', 'ui-monospace', 'monospace'],
+          'mono-code': ['var(--font-mono)', 'ui-monospace', 'monospace'],
+        }
+      }
+    }
+  };
+</script>
+<style>
+  :root {
+    color-scheme: light;
+
+    /* Font Tokens */
+    --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+    /* Layout Tokens (rem based for proportional scaling) */
+    --sidebar-w: 17.5rem;
+    --sidebar-w-collapsed: 4.75rem;
+    --content-margin: 19rem;
+    --content-margin-collapsed: 6.25rem;
+
+    /* RGB Channel Tokens (Light) */
+    --c-canvas: 238 243 250;
+    --c-surface: 255 255 255;
+    --c-ink: 23 36 61;
+    --c-ink-2: 63 81 107;
+    --c-ink-3: 91 110 136;
+    --c-line: 220 228 239;
+    --c-line-2: 226 236 248;
+    --c-accent: 30 95 216;
+    --c-teal: 12 122 128;
+    --c-ok: 6 95 70;
+    --c-bad: 185 28 28;
+    --c-warn: 180 83 9;
+    --c-table-header: 246 249 253;
+    --c-table-bg: 255 255 255;
+
+    /* Direct Color Variables for SVG / CSS */
+    --color-primary: #17243D;
+    --color-muted: #3F516B;
+    --color-muted-label: #5B6E88;
+    --color-accent: #1E5FD8;
+    --color-teal: #0C7A80;
+    --color-ok: #065F46;
+    --color-bad: #B91C1C;
+    --color-warn: #B45309;
+
+    /* Glass Surfaces */
+    --glass-bg: rgba(255, 255, 255, 0.50);
+    --glass-strong: rgba(255, 255, 255, 0.70);
+    --glass-solid: rgba(255, 255, 255, 0.95);
+    --glass-border: rgba(255, 255, 255, 0.70);
+    --glass-border-subtle: rgba(220, 228, 239, 0.70);
+    --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(255, 255, 255, 0.25);
+
+    /* Layered Shadows */
+    --shadow-layered: 0 1px 2px rgba(23, 36, 61, 0.04), 0 8px 24px rgba(23, 36, 61, 0.05), 0 24px 60px rgba(23, 36, 61, 0.03);
+    --shadow-hover: 0 2px 4px rgba(23, 36, 61, 0.05), 0 12px 28px rgba(23, 36, 61, 0.08), 0 30px 70px rgba(23, 36, 61, 0.05);
+    --shadow-sm: 0 1px 3px rgba(23, 36, 61, 0.04);
+    --shadow-tooltip: 0 4px 20px rgba(23, 36, 61, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+
+    /* Animation curves */
+    --spring: cubic-bezier(0.32, 0.72, 0, 1);
+
+    /* Continuous Corners */
+    --radius-lg: 24px;
+    --radius-md: 16px;
+    --radius-sm: 12px;
+
+    /* Callout & Chips */
+    --callout-bg: rgba(30, 95, 216, 0.06);
+    --callout-border: rgba(30, 95, 216, 0.22);
+    --callout-text: #17243D;
+    --badge-valid-bg: rgba(6, 95, 70, 0.10);
+    --badge-valid-text: #065F46;
+    --badge-valid-border: rgba(6, 95, 70, 0.30);
+    --badge-valid-dot: #065F46;
+
+    /* Chart Tokens */
+    --chart-gridline: rgba(220, 228, 239, 0.9);
+    --chart-axis-text: #5B6E88;
+    --chart-checkpoint: #17243D;
+    --chart-ann-start: #3B82F6;
+    --chart-ann-end: #1E5FD8;
+    --chart-w-start: #14B8A6;
+    --chart-w-end: #0C7A80;
+    --chart-dist-bg: #E2ECF8;
+    --chart-dist-fill: #1E5FD8;
+
+    /* Background blobs */
+    --blob-1: rgba(59, 130, 246, 0.16);
+    --blob-2: rgba(20, 184, 166, 0.14);
+    --blob-3: rgba(139, 92, 246, 0.12);
+    --blob-4: rgba(249, 115, 22, 0.10);
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+
+    /* RGB Channel Tokens (Dark) */
+    --c-canvas: 11 18 32;
+    --c-surface: 19 28 46;
+    --c-ink: 241 245 249;
+    --c-ink-2: 182 192 210;
+    --c-ink-3: 148 163 184;
+    --c-line: 38 50 72;
+    --c-line-2: 30 41 59;
+    --c-accent: 91 155 255;
+    --c-teal: 34 184 192;
+    --c-ok: 110 231 183;
+    --c-bad: 248 113 113;
+    --c-warn: 251 191 36;
+    --c-table-header: 21 32 51;
+    --c-table-bg: 17 25 39;
+
+    /* Direct Color Variables for SVG / CSS */
+    --color-primary: #F1F5F9;
+    --color-muted: #B6C0D2;
+    --color-muted-label: #94A3B8;
+    --color-accent: #5B9BFF;
+    --color-teal: #22B8C0;
+    --color-ok: #6EE7B7;
+    --color-bad: #F87171;
+    --color-warn: #FBBF24;
+
+    /* Glass Surfaces */
+    --glass-bg: rgba(19, 28, 46, 0.65);
+    --glass-strong: rgba(24, 36, 58, 0.80);
+    --glass-solid: #131C2E;
+    --glass-border: rgba(255, 255, 255, 0.10);
+    --glass-border-subtle: #263248;
+    --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 -1px 0 rgba(0, 0, 0, 0.40);
+
+    /* Layered Shadows */
+    --shadow-layered: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35), 0 24px 60px rgba(0, 0, 0, 0.4);
+    --shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.4), 0 12px 28px rgba(0, 0, 0, 0.45), 0 30px 70px rgba(0, 0, 0, 0.5);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-tooltip: 0 4px 24px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+
+    /* Callout & Chips */
+    --callout-bg: rgba(91, 155, 255, 0.10);
+    --callout-border: rgba(91, 155, 255, 0.28);
+    --callout-text: #F1F5F9;
+    --badge-valid-bg: rgba(110, 231, 183, 0.15);
+    --badge-valid-text: #6EE7B7;
+    --badge-valid-border: rgba(110, 231, 183, 0.35);
+    --badge-valid-dot: #6EE7B7;
+
+    /* Chart Tokens */
+    --chart-gridline: rgba(148, 163, 184, 0.16);
+    --chart-axis-text: #94A3B8;
+    --chart-checkpoint: #93C5FD;
+    --chart-ann-start: #60A5FA;
+    --chart-ann-end: #2563EB;
+    --chart-w-start: #2DD4BF;
+    --chart-w-end: #0D9488;
+    --chart-dist-bg: #1E293B;
+    --chart-dist-fill: #5B9BFF;
+
+    /* Background blobs */
+    --blob-1: rgba(59, 130, 246, 0.10);
+    --blob-2: rgba(20, 184, 166, 0.08);
+    --blob-3: rgba(139, 92, 246, 0.08);
+    --blob-4: rgba(249, 115, 22, 0.06);
+  }
+
+  html {
+    font-size: 112.5%;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    background-color: rgb(var(--c-canvas));
+    color: rgb(var(--c-ink));
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* Fixed layered gradient background with soft drifting blobs: two layers (light and dark) cross-fading over 450ms */
+  body::before,
+  body::after {
+    content: "";
+    position: fixed;
+    inset: -40px;
+    pointer-events: none;
+    z-index: -1;
+    transition: opacity 450ms ease-in-out;
+    animation: blobDrift 50s ease-in-out infinite alternate;
+    will-change: transform, opacity;
+  }
+
+  /* Light layer */
+  body::before {
+    background-color: rgb(238 243 250);
+    background-image:
+      radial-gradient(circle 900px at 12% 14%, rgba(59, 130, 246, 0.16), transparent 70%),
+      radial-gradient(circle 850px at 88% 20%, rgba(20, 184, 166, 0.14), transparent 70%),
+      radial-gradient(circle 950px at 45% 85%, rgba(139, 92, 246, 0.12), transparent 70%),
+      radial-gradient(circle 750px at 90% 80%, rgba(249, 115, 22, 0.10), transparent 65%);
+    opacity: 1;
+  }
+
+  /* Dark layer */
+  body::after {
+    background-color: rgb(11 18 32);
+    background-image:
+      radial-gradient(circle 900px at 12% 14%, rgba(59, 130, 246, 0.10), transparent 70%),
+      radial-gradient(circle 850px at 88% 20%, rgba(20, 184, 166, 0.08), transparent 70%),
+      radial-gradient(circle 950px at 45% 85%, rgba(139, 92, 246, 0.08), transparent 70%),
+      radial-gradient(circle 750px at 90% 80%, rgba(249, 115, 22, 0.06), transparent 65%);
+    opacity: 0;
+  }
+
+  [data-theme="dark"] body::before {
+    opacity: 0;
+  }
+  [data-theme="dark"] body::after {
+    opacity: 1;
+  }
+
+  @keyframes blobDrift {
+    0% { transform: translate3d(0, 0, 0) scale(1); }
+    50% { transform: translate3d(24px, -18px, 0) scale(1.03); }
+    100% { transform: translate3d(-18px, 16px, 0) scale(0.98); }
+  }
+
+  /* View Transitions (Primary Theme Transition Path: 450ms cross-fade) */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 450ms;
+    animation-timing-function: ease-in-out;
+  }
+
+  html.vt-theme *,
+  html.vt-theme *::before,
+  html.vt-theme *::after {
+    transition: none !important;
+  }
+
+  /* Fallback path when View Transitions API is not available or disabled */
+  html.theme-animating,
+  html.theme-animating *,
+  html.theme-animating *::before,
+  html.theme-animating *::after {
+    transition: background-color 450ms ease, color 450ms ease, border-color 450ms ease, fill 450ms ease, stroke 450ms ease, stop-color 450ms ease, box-shadow 450ms ease !important;
+  }
+
+  /* Sun / Moon swap animation inside toggle button (300ms) */
+  .theme-icon-sun {
+    opacity: 0;
+    transform: rotate(90deg) scale(0.5);
+    transition: opacity 300ms cubic-bezier(0.32, 0.72, 0, 1), transform 300ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  .theme-icon-moon {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+    transition: opacity 300ms cubic-bezier(0.32, 0.72, 0, 1), transform 300ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  [data-theme="dark"] .theme-icon-sun {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+  }
+  [data-theme="dark"] .theme-icon-moon {
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.5);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    body::before, body::after {
+      animation: none !important;
+      transition: none !important;
+    }
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+      animation: none !important;
+    }
+    .theme-icon-sun, .theme-icon-moon {
+      transition: none !important;
+      transform: none !important;
+    }
+    * {
+      transition: none !important;
+      animation: none !important;
+    }
+  }
+
+  .font-mono-code {
+    font-family: var(--font-mono);
+  }
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  /* Visible focus ring on all focusable elements */
+  :focus-visible {
+    outline: 2px solid rgb(var(--c-accent)) !important;
+    outline-offset: 2px !important;
+  }
+
+  /* Glass Containers */
+  .apple-glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-layered), var(--glass-highlight);
+    transition: transform 200ms var(--spring), border-color 200ms var(--spring), box-shadow 200ms var(--spring);
+  }
+
+  .apple-glass-strong {
+    background: var(--glass-strong);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-layered), var(--glass-highlight);
+  }
+
+  .apple-glass-pill {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px) saturate(170%);
+    -webkit-backdrop-filter: blur(20px) saturate(170%);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-sm), var(--glass-highlight);
+    transition: transform 180ms var(--spring), background-color 180ms var(--spring), border-color 180ms var(--spring);
+  }
+
+  @supports not (backdrop-filter: blur(1px)) {
+    .apple-glass, .apple-glass-strong, .apple-glass-pill {
+      background: var(--glass-solid) !important;
+    }
+  }
+
+  /* Metric cards lift hover */
+  .metric-card {
+    transition: transform 180ms var(--spring), box-shadow 180ms var(--spring);
+  }
+  .metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+  }
+
+  /* Press animation for buttons */
+  .btn-press:active {
+    transform: scale(0.97);
+  }
+
+  /* RPKI Valid Badge */
+  .badge-rpki-valid {
+    background: var(--badge-valid-bg);
+    color: var(--badge-valid-text);
+    border: 1px solid var(--badge-valid-border);
+  }
+
+  /* Table styling */
+  .table-container {
+    background: rgb(var(--c-table-bg));
+    border: 1px solid var(--glass-border-subtle);
+  }
+  .table-sticky-header th {
+    background: rgb(var(--c-table-header));
+    color: rgb(var(--c-ink-2));
+    border-bottom: 1px solid var(--glass-border-subtle);
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+  .table-divider-row td {
+    border-bottom: 1px solid rgb(var(--c-line-2));
+    font-size: 0.8125rem;
+  }
+  .table-row-hover:hover {
+    background-color: rgb(var(--c-accent) / 0.05);
+  }
+
+  /* Form controls */
+  .input-theme, .select-theme {
+    background: rgb(var(--c-surface) / 0.70);
+    border: 1px solid rgb(var(--c-line));
+    color: rgb(var(--c-ink));
+  }
+  .btn-theme {
+    background: rgb(var(--c-surface) / 0.85);
+    border: 1px solid rgb(var(--c-line));
+    color: rgb(var(--c-ink));
+  }
+  .btn-theme:hover {
+    background: rgb(var(--c-ink) / 0.08);
+  }
+
+  /* Timeline Bars */
+  .timeline-bar {
+    transform-origin: bottom center;
+    transition: opacity 150ms ease, filter 150ms ease;
+  }
+  .timeline-bar:hover {
+    filter: brightness(1.15);
+  }
+
+  /* Custom Floating Tooltip */
+  #pathwatch-tooltip {
+    position: fixed;
+    z-index: 1000;
+    pointer-events: none;
+    background: rgb(var(--c-surface) / 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgb(var(--c-line));
+    border-radius: 12px;
+    box-shadow: var(--shadow-tooltip);
+    padding: 8px 12px;
+    font-size: 0.75rem;
+    color: rgb(var(--c-ink));
+    opacity: 0;
+    transform: translate(-50%, -100%) translateY(-10px);
+    transition: opacity 120ms ease, transform 120ms ease;
+    white-space: nowrap;
+  }
+  #pathwatch-tooltip.visible {
+    opacity: 1;
+    transform: translate(-50%, -100%) translateY(-6px);
+  }
+
+  /* Sidebar layout & responsive collapse */
+  #main-sidebar {
+    width: var(--sidebar-w);
+  }
+  aside.sidebar-collapsed {
+    width: var(--sidebar-w-collapsed) !important;
+  }
+  aside.sidebar-collapsed .sidebar-expanded-text {
+    display: none !important;
+  }
+  aside.sidebar-collapsed .sidebar-header {
+    flex-direction: column !important;
+    align-items: center !important;
+    padding: 12px 6px !important;
+    gap: 8px !important;
+  }
+  aside.sidebar-collapsed .sidebar-header-controls {
+    margin-left: 0 !important;
+  }
+  aside.sidebar-collapsed .sidebar-footer {
+    justify-content: center !important;
+    padding: 12px 6px !important;
+  }
+  aside.sidebar-collapsed .nav-item {
+    justify-content: center !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  aside.sidebar-collapsed .nav-pill-indicator {
+    left: 8px !important;
+    right: 8px !important;
+  }
+
+  @media (min-width: 768px) {
+    #main-content {
+      margin-left: var(--content-margin);
+    }
+    body.sidebar-is-collapsed #main-content {
+      margin-left: var(--content-margin-collapsed);
+    }
+  }
+</style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+<!-- Floating Tooltip Container -->
+<div id="pathwatch-tooltip" role="tooltip" aria-hidden="true">
+  <div id="tooltip-title" class="font-semibold text-ink font-mono-code text-xs"></div>
+  <div id="tooltip-body" class="text-ink-2 text-xs mt-0.5"></div>
+</div>
+
+<!-- Mobile Top Header Bar -->
+<header class="md:hidden flex items-center justify-between p-3.5 apple-glass sticky top-2 z-50 mx-3 mb-2">
+  <div class="flex items-center gap-2">
+    <div class="w-8 h-8 rounded-lg apple-glass-pill flex items-center justify-center text-accent">
+      <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M10 12c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM6 8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12-8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm-4 4c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm4 4c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-4-8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm-4-4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg>
+    </div>
+    <span class="font-semibold text-base text-ink">PathWatch</span>
+  </div>
+  <div class="flex items-center gap-2">
+    <button id="mobile-theme-toggle-btn" type="button" class="w-9 h-9 rounded-xl apple-glass-pill flex items-center justify-center text-ink-2" aria-label="Toggle theme" onclick="toggleTheme()"></button>
+    <button id="mobile-menu-toggle-btn" type="button" class="w-9 h-9 rounded-xl apple-glass-pill flex items-center justify-center text-ink-2" aria-label="Toggle menu" onclick="toggleMobileMenu()">
+      <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+    </button>
+  </div>
+</header>
+
+<!-- Mobile Dropdown Navigation -->
+<div id="mobile-menu" class="hidden md:hidden apple-glass mx-3 mb-3 p-2 flex flex-col gap-1 z-40">
+  <button onclick="navigate('overview'); toggleMobileMenu();" class="text-left py-2 px-3 rounded-lg text-xs font-medium text-ink hover:bg-ink/5">Overview</button>
+  <button onclick="navigate('events'); toggleMobileMenu();" class="text-left py-2 px-3 rounded-lg text-xs font-medium text-ink hover:bg-ink/5">Route Events</button>
+  <button onclick="navigate('paths'); toggleMobileMenu();" class="text-left py-2 px-3 rounded-lg text-xs font-medium text-ink hover:bg-ink/5">AS Paths</button>
+  <button onclick="navigate('snapshots'); toggleMobileMenu();" class="text-left py-2 px-3 rounded-lg text-xs font-medium text-ink hover:bg-ink/5">RPKI Snapshots</button>
+  <button onclick="navigate('live'); toggleMobileMenu();" class="text-left py-2 px-3 rounded-lg text-xs font-medium text-ink hover:bg-ink/5">Live Monitor</button>
+  <button onclick="navigate('methodology'); toggleMobileMenu();" class="text-left py-2 px-3 rounded-lg text-xs font-medium text-ink hover:bg-ink/5">Methodology</button>
+</div>
+
+<div class="flex flex-1 w-full min-h-screen">
+  <!-- Desktop Glass Sidebar -->
+  <aside id="main-sidebar" class="hidden md:flex flex-col apple-glass fixed top-4 bottom-4 left-4 z-40 transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] select-none">
+    <!-- Header Block -->
+    <div class="sidebar-header flex items-center p-4 border-b border-line">
+      <!-- 40x40 Logo Tile -->
+      <div class="w-10 h-10 rounded-xl apple-glass-pill flex items-center justify-center flex-shrink-0 text-accent">
+        <!-- Grain SVG Icon -->
+        <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M10 12c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM6 8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12-8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm-4 4c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm4 4c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-4-8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm-4-4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg>
+      </div>
+
+      <!-- Title & Subtitle: Full Team Code Visible (No Truncation) -->
+      <div class="sidebar-expanded-text ml-3 overflow-hidden leading-snug">
+        <div class="text-base font-semibold tracking-tight text-ink whitespace-nowrap">PathWatch</div>
+        <div class="text-xs font-mono-code text-ink-3">PS-032 &bull; A3-PS032-TC538</div>
+      </div>
+
+      <!-- Controls: Sidebar Collapse Only (Theme Toggle moved to Footer) -->
+      <div class="sidebar-header-controls flex items-center ml-auto">
+        <button id="sidebar-toggle-btn" type="button" class="w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer btn-press border border-line bg-surface hover:bg-ink/5" aria-label="Collapse sidebar" aria-expanded="true" onclick="toggleSidebar()">
+          <span id="sidebar-toggle-icon" class="text-ink-2"></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Navigation List with Sliding Pill Indicator -->
+    <nav class="flex-1 p-3 space-y-1 relative" aria-label="Main Navigation">
+      <div id="nav-pill-indicator" class="nav-pill-indicator absolute left-3 right-3 h-10 rounded-xl bg-accent/15 border border-accent/30 transition-all duration-200 pointer-events-none" style="top: 12px; display: none;"></div>
+
+      <button id="nav-overview" onclick="navigate('overview')" aria-current="page" class="nav-item relative w-full h-10 px-3.5 rounded-xl flex items-center gap-3 text-xs font-medium text-accent transition-colors z-10 btn-press">
+        <span class="nav-icon flex-shrink-0 text-accent">
+          <!-- Dashboard SVG -->
+          <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+        </span>
+        <span class="sidebar-expanded-text whitespace-nowrap">Overview</span>
+      </button>
+
+      <button id="nav-events" onclick="navigate('events')" class="nav-item relative w-full h-10 px-3.5 rounded-xl flex items-center gap-3 text-xs font-medium text-ink-2 hover:text-ink transition-colors z-10 btn-press">
+        <span class="nav-icon flex-shrink-0 text-ink-3">
+          <!-- Alt route SVG -->
+          <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M8.5 7.5l-4-4 1.41-1.41L8.5 4.67l2.59-2.58 1.41 1.41-4 4zm0 2.83l4 4-1.41 1.41L8.5 13.17l-2.59 2.58L4.5 14.34l4-4.01zM19 14h-2.58l-3.71-3.71 1.41-1.41L17.41 12H19v2zM19 6h-2.58l-3.71 3.71 1.41 1.41L17.41 8H19V6z"/></svg>
+        </span>
+        <span class="sidebar-expanded-text whitespace-nowrap">Route Events</span>
+      </button>
+
+      <button id="nav-paths" onclick="navigate('paths')" class="nav-item relative w-full h-10 px-3.5 rounded-xl flex items-center gap-3 text-xs font-medium text-ink-2 hover:text-ink transition-colors z-10 btn-press">
+        <span class="nav-icon flex-shrink-0 text-ink-3">
+          <!-- Hub SVG -->
+          <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3c0 .34.06.67.16.97L6.97 7.16A3 3 0 0 0 4 7a3 3 0 1 0 2.84 4h4.32a3.003 3.003 0 0 0 1.68 1.95v3.1a3 3 0 1 0 2 0v-3.1A3.003 3.003 0 0 0 16.52 11H20a3 3 0 1 0-2.84-4 2.97 2.97 0 0 0-2.32-1.19c.1-.3.16-.63.16-.97a3 3 0 0 0-3-3z"/></svg>
+        </span>
+        <span class="sidebar-expanded-text whitespace-nowrap">AS Paths</span>
+      </button>
+
+      <button id="nav-snapshots" onclick="navigate('snapshots')" class="nav-item relative w-full h-10 px-3.5 rounded-xl flex items-center gap-3 text-xs font-medium text-ink-2 hover:text-ink transition-colors z-10 btn-press">
+        <span class="nav-icon flex-shrink-0 text-ink-3">
+          <!-- Photo camera SVG -->
+          <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+        </span>
+        <span class="sidebar-expanded-text whitespace-nowrap">RPKI Snapshots</span>
+      </button>
+
+      <button id="nav-live" onclick="navigate('live')" class="nav-item relative w-full h-10 px-3.5 rounded-xl flex items-center gap-3 text-xs font-medium text-ink-2 hover:text-ink transition-colors z-10 btn-press">
+        <span class="nav-icon flex-shrink-0 text-ink-3">
+          <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10.01 10.01 0 0 0 12 2zm1 5v5.4l3.2 1.9-1 1.7L11 13.5V7z"/></svg>
+        </span>
+        <span class="sidebar-expanded-text whitespace-nowrap">Live Monitor</span>
+      </button>
+
+      <button id="nav-methodology" onclick="navigate('methodology')" class="nav-item relative w-full h-10 px-3.5 rounded-xl flex items-center gap-3 text-xs font-medium text-ink-2 hover:text-ink transition-colors z-10 btn-press">
+        <span class="nav-icon flex-shrink-0 text-ink-3">
+          <!-- Menu book SVG -->
+          <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1zm-1 13c-1.1-.35-2.3-.5-3.5-.5-1.7 0-4.15.65-5.5 1.5V8c1.35-.85 3.8-1.5 5.5-1.5 1.2 0 2.4.15 3.5.5v11z"/></svg>
+        </span>
+        <span class="sidebar-expanded-text whitespace-nowrap">Methodology</span>
+      </button>
+    </nav>
+
+    <!-- Sidebar Footer with Theme Toggle and Historical Analysis Notice -->
+    <div class="sidebar-footer p-3.5 border-t border-line text-xs text-ink-3 flex items-center justify-between gap-2">
+      <div class="sidebar-expanded-text flex items-center gap-2 min-w-0">
+        <!-- Info SVG -->
+        <svg class="w-4 h-4 fill-current flex-shrink-0" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+        <span class="truncate">Historical analysis + opt-in RIS Live.</span>
+      </div>
+      <button id="theme-toggle-btn" type="button" class="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center transition-all cursor-pointer btn-press border border-line bg-surface hover:bg-ink/5" aria-label="Switch to dark mode" aria-pressed="false" onclick="toggleTheme()">
+        <span id="theme-icon-container" class="text-ink-2 flex items-center justify-center"></span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content Workspace (Scaled max-width 1520px, proportional layout) -->
+  <main id="main-content" class="flex-1 min-w-0 transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] p-3 sm:p-6 lg:p-8 max-w-[1520px] mx-auto w-full flex flex-col gap-6">
+    <!-- Study Scope Bar -->
+    <div id="study-scope-bar" class="apple-glass p-3.5 sm:p-4 flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div class="flex items-center gap-2 flex-wrap min-w-0">
+        <span class="px-2.5 py-1 rounded-md text-xs font-mono-code font-semibold bg-accent/15 text-accent border border-accent/25" id="scope-prefix">—</span>
+        <span class="text-ink-3">&bull;</span>
+        <span class="text-ink-2 font-mono-code text-xs" id="scope-window">Loading study window...</span>
+        <span class="text-ink-3">&bull;</span>
+        <span class="text-ink-2 font-mono-code text-xs" id="scope-snapshots">Loading snapshots...</span>
+      </div>
+      <div class="px-2.5 py-1 rounded-md text-xs font-mono-code font-medium bg-ink/5 text-ink border border-line flex-shrink-0" id="scope-source">
+        RIPE Stat RIS (Historical study)
+      </div>
+    </div>
+
+    <!-- Dynamic View Container -->
+    <div id="view-container" class="flex flex-col gap-6">
+      <div class="apple-glass p-12 text-center text-ink-2 text-xs">Loading study dataset...</div>
+    </div>
+  </main>
+</div>
+
+<!-- Application Logic Scripts -->
+<script>
+let appData = null;
+let currentView = 'overview';
+let livePollTimer = null;
+let liveActionBusy = false;
+let sidebarCollapsed = false;
+let eventFilterState = {
+  q: '',
+  event_type: 'all',
+  rpki_state: 'all',
+  sort: 'timestamp_desc',
+  page: 1,
+  page_size: 50,
+};
+let eventsAbortController = null;
+let eventsFetchSeq = 0;
+let timelineResizeObserver = null;
+let timelineResizeDebounce = null;
+
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const formatPath = (p) => Array.isArray(p) && p.length ? p.map(esc).join(' &rarr; ') : '&mdash;';
+const cleanTime = (t) => String(t || '').replace('T', ' ');
+
+// Robust UTC timestamp parser supporting 'Z', '+00:00' and naive UTC
+function parseUtc(str) {
+  if (!str) return NaN;
+  let s = String(str).trim();
+  if (!s.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(s)) {
+    s += 'Z';
+  }
+  return Date.parse(s);
+}
+
+// Inline SVGs for Theme Toggle
+const ICON_MOON = `<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12.3 2a10 10 0 0 0-.19 14 10 10 0 0 0 11.57.29 1 1 0 0 1 1.25 1.48A12 12 0 1 1 10.53 1.05a1 1 0 0 1 1.77.95z"/></svg>`;
+const ICON_SUN = `<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0-5a1 1 0 0 0-1 1v2a1 1 0 0 0 2 0V3a1 1 0 0 0-1-1zm0 18a1 1 0 0 0-1 1v2a1 1 0 0 0 2 0v-2a1 1 0 0 0-1-1zm10-9h-2a1 1 0 0 0 0 2h2a1 1 0 0 0 0-2zM4 12a1 1 0 0 0-1-1H1a1 1 0 0 0 0 2h2a1 1 0 0 0 1-1zm14.07-7.07a1 1 0 0 0-1.41 0l-1.42 1.41a1 1 0 1 0 1.42 1.42l1.41-1.42a1 1 0 0 0 0-1.41zM6.34 16.24a1 1 0 0 0-1.41 0l-1.42 1.42a1 1 0 1 0 1.42 1.41l1.41-1.41a1 1 0 0 0 0-1.42zm11.32 1.42-1.41-1.42a1 1 0 1 0-1.42 1.42l1.41 1.41a1 1 0 0 0 1.42-1.41zM6.34 7.76 4.93 6.34a1 1 0 1 0-1.42 1.42l1.42 1.41a1 1 0 0 0 1.41-1.41z"/></svg>`;
+const ICON_DOCK_LEFT = `<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zm5 14V6H4v12h5zm11 0V6h-9v12h9z"/></svg>`;
+const ICON_DOCK_RIGHT = `<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-5 14V6h5v12h-5zM4 18V6h9v12H4z"/></svg>`;
+
+// Floating Tooltip Helpers
+const tooltip = document.getElementById('pathwatch-tooltip');
+const tooltipTitle = document.getElementById('tooltip-title');
+const tooltipBody = document.getElementById('tooltip-body');
+
+function showTooltip(e, title, bodyHtml) {
+  if (!tooltip) return;
+  tooltipTitle.textContent = title;
+  tooltipBody.innerHTML = bodyHtml;
+  tooltip.classList.add('visible');
+  tooltip.setAttribute('aria-hidden', 'false');
+  moveTooltip(e);
+}
+function moveTooltip(e) {
+  if (!tooltip) return;
+  const x = e.clientX !== undefined ? e.clientX : (e.target ? e.target.getBoundingClientRect().left + e.target.getBoundingClientRect().width / 2 : 0);
+  const y = e.clientY !== undefined ? e.clientY : (e.target ? e.target.getBoundingClientRect().top : 0);
+  tooltip.style.left = `${x}px`;
+  tooltip.style.top = `${y}px`;
+}
+function hideTooltip() {
+  if (!tooltip) return;
+  tooltip.classList.remove('visible');
+  tooltip.setAttribute('aria-hidden', 'true');
+}
+
+// Theme Management (View Transitions API with 450ms cross-fade and fallback)
+let currentViewTransition = null;
+let pendingTargetTheme = null;
+
+function updateThemeToggleButtons(theme) {
+  const isDark = theme === 'dark';
+  const label = isDark ? 'Switch to light mode' : 'Switch to dark mode';
+  const pressed = String(isDark);
+
+  const swapHtml = `
+    <span class="theme-icon-swap relative w-4 h-4 flex items-center justify-center">
+      <span class="theme-icon-sun absolute inset-0 flex items-center justify-center">${ICON_SUN}</span>
+      <span class="theme-icon-moon absolute inset-0 flex items-center justify-center">${ICON_MOON}</span>
+    </span>`;
+
+  const desktopBtn = document.getElementById('theme-toggle-btn');
+  const desktopContainer = document.getElementById('theme-icon-container');
+  if (desktopBtn && desktopContainer) {
+    if (!desktopContainer.querySelector('.theme-icon-swap')) {
+      desktopContainer.innerHTML = swapHtml;
+    }
+    desktopBtn.setAttribute('aria-label', label);
+    desktopBtn.setAttribute('aria-pressed', pressed);
+  }
+
+  const mobileBtn = document.getElementById('mobile-theme-toggle-btn');
+  if (mobileBtn) {
+    if (!mobileBtn.querySelector('.theme-icon-swap')) {
+      mobileBtn.innerHTML = swapHtml;
+    }
+    mobileBtn.setAttribute('aria-label', label);
+    mobileBtn.setAttribute('aria-pressed', pressed);
+  }
+}
+
+function applyTheme(next, options = {}) {
+  pendingTargetTheme = next;
+  const animate = options.animate !== false;
+  const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+  if (next === currentTheme && !options.force && !currentViewTransition) {
+    pendingTargetTheme = null;
+    updateThemeToggleButtons(next);
+    return;
+  }
+
+  // Cancel any running view transition so rapid clicking never leaves a stuck or half-themed state
+  if (currentViewTransition && typeof currentViewTransition.skipTransition === 'function') {
+    try {
+      currentViewTransition.skipTransition();
+    } catch (e) {}
+    currentViewTransition = null;
+    document.documentElement.classList.remove('vt-theme');
+  }
+
+  const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function updateThemeDOM(targetTheme) {
+    document.documentElement.setAttribute('data-theme', targetTheme);
+    document.documentElement.style.colorScheme = targetTheme;
+    try {
+      if (!options.isHashOverride) {
+        localStorage.setItem('pathwatch_theme', targetTheme);
+      }
+    } catch (e) {}
+    updateThemeToggleButtons(targetTheme);
+    pendingTargetTheme = null;
+  }
+
+  const hasVT = !window.__DISABLE_VIEW_TRANSITIONS__ && typeof document.startViewTransition === 'function';
+
+  if (animate && !reducedMotion && hasVT) {
+    document.documentElement.classList.add('vt-theme');
+    try {
+      const vt = document.startViewTransition(() => {
+        updateThemeDOM(next);
+      });
+      currentViewTransition = vt;
+      const cleanup = () => {
+        document.documentElement.classList.remove('vt-theme');
+        if (currentViewTransition === vt) {
+          currentViewTransition = null;
+        }
+      };
+      vt.finished.then(cleanup, cleanup);
+      setTimeout(cleanup, 500);
+    } catch (err) {
+      document.documentElement.classList.remove('vt-theme');
+      updateThemeDOM(next);
+    }
+  } else if (animate && !reducedMotion) {
+    // Fallback path: add class html.theme-animating for 450ms only
+    document.documentElement.classList.add('theme-animating');
+    updateThemeDOM(next);
+    clearTimeout(window._themeAnimTimeout);
+    window._themeAnimTimeout = setTimeout(() => {
+      document.documentElement.classList.remove('theme-animating');
+    }, 450);
+  } else {
+    // Instantaneous change
+    updateThemeDOM(next);
+  }
+}
+
+function toggleTheme() {
+  const current = pendingTargetTheme || document.documentElement.getAttribute('data-theme') || 'light';
+  const next = current === 'dark' ? 'light' : 'dark';
+  applyTheme(next, { animate: true });
+}
+
+// Live OS Theme Change Listener
+if (window.matchMedia) {
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+    let saved = null;
+    try { saved = localStorage.getItem('pathwatch_theme'); } catch (err) {}
+    const hash = window.location.hash || '';
+    if (!saved && !hash.match(/theme=(dark|light)/)) {
+      applyTheme(e.matches ? 'dark' : 'light', { animate: true });
+    }
+  });
+}
+
+// Sidebar Collapse Management (using rem layout variables & body class)
+function applySidebarState(collapsed, animate = true) {
+  sidebarCollapsed = collapsed;
+  const sidebar = document.getElementById('main-sidebar');
+  const toggleBtn = document.getElementById('sidebar-toggle-btn');
+  const iconContainer = document.getElementById('sidebar-toggle-icon');
+
+  if (collapsed) {
+    document.body.classList.add('sidebar-is-collapsed');
+    if (sidebar) sidebar.classList.add('sidebar-collapsed');
+    if (toggleBtn) {
+      toggleBtn.setAttribute('aria-expanded', 'false');
+      toggleBtn.setAttribute('aria-label', 'Expand sidebar');
+    }
+    if (iconContainer) iconContainer.innerHTML = ICON_DOCK_RIGHT;
+  } else {
+    document.body.classList.remove('sidebar-is-collapsed');
+    if (sidebar) sidebar.classList.remove('sidebar-collapsed');
+    if (toggleBtn) {
+      toggleBtn.setAttribute('aria-expanded', 'true');
+      toggleBtn.setAttribute('aria-label', 'Collapse sidebar');
+    }
+    if (iconContainer) iconContainer.innerHTML = ICON_DOCK_LEFT;
+  }
+  updateNavPill(currentView);
+}
+
+function toggleSidebar(forceState) {
+  const nextState = forceState !== undefined ? forceState : !sidebarCollapsed;
+  applySidebarState(nextState, true);
+  try {
+    localStorage.setItem('pathwatch_sidebar_collapsed', nextState ? '1' : '0');
+  } catch (e) {}
+}
+
+function toggleMobileMenu() {
+  const menu = document.getElementById('mobile-menu');
+  if (menu) menu.classList.toggle('hidden');
+}
+
+// URL Hash Routing
+function parseHashParams() {
+  const hash = window.location.hash || '';
+  const clean = hash.replace(/^#/, '');
+  const params = new URLSearchParams(clean);
+  return {
+    view: params.get('view') || 'overview',
+    theme: params.get('theme'),
+  };
+}
+
+function updateNavPill(viewName) {
+  const navBtn = document.getElementById(`nav-${viewName}`);
+  const indicator = document.getElementById('nav-pill-indicator');
+  if (!navBtn || !indicator) return;
+
+  const topOffset = navBtn.offsetTop;
+  indicator.style.top = `${topOffset}px`;
+  indicator.style.display = 'block';
+
+  document.querySelectorAll('nav button').forEach(btn => {
+    btn.removeAttribute('aria-current');
+    btn.classList.remove('text-accent');
+    btn.classList.add('text-ink-2');
+    const icon = btn.querySelector('.nav-icon');
+    if (icon) {
+      icon.classList.remove('text-accent');
+      icon.classList.add('text-ink-3');
+    }
+  });
+
+  navBtn.setAttribute('aria-current', 'page');
+  navBtn.classList.remove('text-ink-2');
+  navBtn.classList.add('text-accent');
+  const activeIcon = navBtn.querySelector('.nav-icon');
+  if (activeIcon) {
+    activeIcon.classList.remove('text-ink-3');
+    activeIcon.classList.add('text-accent');
+  }
+}
+
+function navigate(viewName, updateHash = true) {
+  const allowed = ['overview', 'events', 'paths', 'snapshots', 'live', 'methodology'];
+  if (!allowed.includes(viewName)) viewName = 'overview';
+
+  currentView = viewName;
+  if (livePollTimer) { clearInterval(livePollTimer); livePollTimer = null; }
+  updateNavPill(viewName);
+  renderCurrentView();
+
+  if (updateHash) {
+    const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    params.set('view', viewName);
+    const newHash = '#' + params.toString();
+    if (window.location.hash !== newHash) {
+      window.history.pushState(null, '', newHash);
+    }
+  }
+}
+
+window.addEventListener('hashchange', () => {
+  const hp = parseHashParams();
+  if (hp.theme === 'dark' || hp.theme === 'light') {
+    setTheme(hp.theme, false);
+  }
+  if (hp.view !== currentView) {
+    navigate(hp.view, false);
+  }
+});
+
+// Scope Banner Updater
+function updateScopeBanner() {
+  if (!appData) return;
+  const s = appData.summary || {};
+  const w = appData.study_window || {};
+  const rpki = appData.rpki_status || {};
+  const snaps = appData.snapshots || [];
+
+  const prefixEl = document.getElementById('scope-prefix');
+  const windowEl = document.getElementById('scope-window');
+  const snapsEl = document.getElementById('scope-snapshots');
+
+  if (prefixEl) prefixEl.textContent = s.prefix ?? '—';
+  if (windowEl) {
+    const startStr = w.start ? cleanTime(w.start) : '—';
+    const endStr = w.end_exclusive ? cleanTime(w.end_exclusive) : '—';
+    windowEl.textContent = `${startStr} &rarr; ${endStr} UTC (72h, end exclusive)`;
+    windowEl.innerHTML = `${esc(startStr)} &rarr; ${esc(endStr)} UTC (72h, end exclusive)`;
+  }
+  if (snapsEl) {
+    const numSnaps = snaps.length > 0 ? (snaps.length + 1) : 0;
+    const numComps = snaps.length;
+    const activeRoas = (rpki.covering_roas || []).length;
+    snapsEl.textContent = `${numSnaps} daily snapshots (${activeRoas} active ROA \u2022 ${numComps} comparisons)`;
+  }
+}
+
+// Data Fetching
+async function initData() {
+  try {
+    const res = await fetch('/api/dashboard');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    appData = await res.json();
+    window.appData = appData;
+    updateScopeBanner();
+
+    const hp = parseHashParams();
+    if (hp.theme === 'dark' || hp.theme === 'light') {
+      applyTheme(hp.theme, { animate: false, isHashOverride: true });
+    } else {
+      const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+      updateThemeToggleButtons(currentTheme);
+    }
+
+    try {
+      const savedCollapsed = localStorage.getItem('pathwatch_sidebar_collapsed');
+      if (savedCollapsed === '1') applySidebarState(true, false);
+      else applySidebarState(false, false);
+    } catch (e) {}
+
+    navigate(hp.view, false);
+  } catch (err) {
+    const container = document.getElementById('view-container');
+    if (container) {
+      container.innerHTML = `<div class="apple-glass p-8 text-center text-bad text-xs">Error loading study data: ${esc(err.message)}</div>`;
+    }
+  }
+}
+
+function renderCurrentView() {
+  if (!appData) return;
+  const container = document.getElementById('view-container');
+  if (currentView === 'overview') {
+    container.innerHTML = renderOverview();
+    initTimelineSVG(true);
+  } else if (currentView === 'events') {
+    renderRouteEventsView();
+  } else if (currentView === 'paths') {
+    container.innerHTML = renderASPaths();
+  } else if (currentView === 'snapshots') {
+    container.innerHTML = renderSnapshots();
+  } else if (currentView === 'live') {
+    renderLiveMonitor();
+  } else if (currentView === 'methodology') {
+    container.innerHTML = renderMethodology();
+  }
+}
+
+// ==========================================
+// VIEW 1: OVERVIEW
+// ==========================================
+function renderOverview() {
+  const s = appData.summary || {};
+  const rpki = appData.rpki_status || {};
+  const roa = (rpki.covering_roas || [])[0] || {};
+  const w = appData.study_window || {};
+
+  const pfxLen = (s.prefix && s.prefix.includes('/')) ? s.prefix.split('/')[1] : null;
+  let exactAuthText = "No covering ROA in data";
+  let roaBadgeHtml = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium font-mono-code bg-ink/10 text-ink-2"><span class="w-1.5 h-1.5 rounded-full bg-ink-3"></span>No covering ROA in data</span>`;
+
+  if (rpki.exact_prefix_authorized) {
+    exactAuthText = `Authorized (/${pfxLen ?? '21'} matches max /${roa.max_length ?? pfxLen ?? '21'})`;
+    roaBadgeHtml = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium badge-rpki-valid font-mono-code"><span class="w-1.5 h-1.5 rounded-full" style="background-color: var(--badge-valid-dot);"></span>RFC 6811 Valid</span>`;
+  }
+
+  const counts = s.rpki_state_counts;
+  const countsHtml = counts ? `
+    <div class="flex justify-between border-b border-line py-1.5">
+      <span class="text-ink-3">RPKI State Counts:</span>
+      <span class="font-mono-code text-xs text-ink">
+        Valid: ${counts.Valid ?? 0} &bull; Unassigned: ${counts.Unassigned ?? 0} &bull; Invalid: ${counts.Invalid ?? 0} &bull; NotFound: ${counts.NotFound ?? 0}
+      </span>
+    </div>` : '';
+
+  return `
+    <!-- Metric Cards Grid (Proportional auto-fit wrapping) -->
+    <div class="grid grid-cols-[repeat(auto-fit,minmax(11.5rem,1fr))] gap-4">
+      <div class="apple-glass metric-card p-4 flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-wider text-ink-3">Announcements</span>
+          <span class="w-2 h-2 rounded-full bg-accent"></span>
+        </div>
+        <div class="text-3xl font-semibold tabular-nums tracking-tight mt-1.5 text-ink">${s.announcements ?? '—'}</div>
+        <span class="text-xs font-mono-code mt-0.5 text-accent">${roa.origin_asn ? 'Origin AS' + roa.origin_asn : '—'}</span>
+      </div>
+
+      <div class="apple-glass metric-card p-4 flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-wider text-ink-3">Withdrawals</span>
+          <span class="w-2 h-2 rounded-full bg-teal"></span>
+        </div>
+        <div class="text-3xl font-semibold tabular-nums tracking-tight mt-1.5 text-ink">${s.withdrawals ?? '—'}</div>
+        <span class="text-xs font-mono-code mt-0.5 text-teal">Unassigned origin</span>
+      </div>
+
+      <div class="apple-glass metric-card p-4 flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-wider text-ink-3">Unique Sources</span>
+          <span class="w-2 h-2 rounded-full bg-ink-3"></span>
+        </div>
+        <div class="text-3xl font-semibold tabular-nums tracking-tight mt-1.5 text-ink">${s.unique_source_ids ?? '—'}</div>
+        <span class="text-xs mt-0.5 text-ink-2">Collector peers</span>
+      </div>
+
+      <div class="apple-glass metric-card p-4 flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-wider text-ink-3">Path Changes</span>
+          <span class="w-2 h-2 rounded-full bg-ink-3"></span>
+        </div>
+        <div class="text-3xl font-semibold tabular-nums tracking-tight mt-1.5 text-ink">${s.path_changes ?? '—'}</div>
+        <span class="text-xs mt-0.5 text-ink-2">Sequential updates</span>
+      </div>
+
+      <div class="apple-glass metric-card p-4 flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-wider text-ink-3">RPKI Valid</span>
+          <span class="w-2 h-2 rounded-full bg-ok"></span>
+        </div>
+        <div class="text-3xl font-semibold tabular-nums tracking-tight mt-1.5 text-ink">${counts ? (counts.Valid ?? '—') : '—'}</div>
+        <span class="text-xs font-medium mt-0.5 text-ok">Current ROA lookup</span>
+      </div>
+
+      <div class="apple-glass metric-card p-4 flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-wider text-ink-3">Missing Evidence</span>
+          <span class="w-2 h-2 rounded-full opacity-40 bg-ink-3"></span>
+        </div>
+        <div class="text-3xl font-semibold tabular-nums tracking-tight mt-1.5 text-ink" title="Events with missing origin AS (withdrawals per RFC 6811)">${s.missing_evidence_count ?? '—'}</div>
+        <span class="text-xs mt-0.5 text-ink-2">Withdrawals (no origin)</span>
+      </div>
+    </div>
+
+    <!-- Timeline Chart Component with Linear Scales & Stacked Bars -->
+    <div id="timeline-chart-container" class="apple-glass-strong p-5 sm:p-6 flex flex-col gap-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-line pb-3.5">
+        <div>
+          <h2 class="text-lg font-semibold text-ink">BGP Update Activity Timeline</h2>
+          <p class="text-xs text-ink-2">Query window: ${esc(w.start || '—')} &rarr; ${esc(w.end_exclusive || '—')} UTC (end exclusive)</p>
+        </div>
+        <div class="flex items-center gap-4 text-xs font-mono-code flex-wrap text-ink">
+          <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-[3px]" style="background-color: var(--chart-ann-end);"></span> Announcements (${s.announcements ?? '—'})</div>
+          <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-[3px]" style="background-color: var(--chart-w-start);"></span> Withdrawals (${s.withdrawals ?? '—'})</div>
+          <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rotate-45" style="background-color: var(--chart-checkpoint);"></span> Daily Snapshot Checkpoint</div>
+        </div>
+      </div>
+
+      <!-- Real Pixel Measured SVG Container (Tight height, no dead vertical gap) -->
+      <div id="svg-host" class="w-full h-40 relative mt-1">
+        <svg id="timeline-svg" role="img" aria-label="72-hour BGP and RPKI route event timeline with 12 6-hour bins and daily snapshot checkpoints" class="w-full h-full overflow-visible">
+          <defs>
+            <linearGradient id="announcementGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="var(--chart-ann-start)" />
+              <stop offset="100%" stop-color="var(--chart-ann-end)" />
+            </linearGradient>
+            <linearGradient id="withdrawalGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="var(--chart-w-start)" />
+              <stop offset="100%" stop-color="var(--chart-w-end)" />
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+
+      <div id="timeline-notes" class="text-xs text-ink-3"></div>
+
+      <!-- Chart Data as Table Access -->
+      <details class="text-xs border-t border-line pt-2 text-ink-2">
+        <summary class="cursor-pointer font-medium hover:text-ink select-none py-1">View chart data as table</summary>
+        <div id="timeline-table-view" class="overflow-x-auto mt-2 rounded-xl table-container shadow-sm max-w-full"></div>
+      </details>
+    </div>
+
+    <!-- RPKI Status & Evidence / Limitations Matrix -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- RPKI Status Block -->
+      <div class="apple-glass p-5 sm:p-6 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-3.5">
+            <h2 class="text-lg font-semibold text-ink">RPKI Authorization Status</h2>
+            ${roaBadgeHtml}
+          </div>
+          <div class="space-y-2.5 text-xs">
+            <div class="flex justify-between border-b border-line py-1.5">
+              <span class="text-ink-3">Target Prefix:</span>
+              <span class="font-mono-code font-medium text-ink">${esc(s.prefix ?? '—')}</span>
+            </div>
+            <div class="flex justify-between border-b border-line py-1.5">
+              <span class="text-ink-3">Authorized Origin:</span>
+              <span class="font-mono-code font-medium text-ink">${roa.origin_asn ? 'AS' + roa.origin_asn : '—'}</span>
+            </div>
+            <div class="flex justify-between border-b border-line py-1.5">
+              <span class="text-ink-3">Allowed Max Length:</span>
+              <span class="font-mono-code font-medium text-ink">${roa.max_length ? '/' + roa.max_length : '—'}</span>
+            </div>
+            <div class="flex justify-between border-b border-line py-1.5">
+              <span class="text-ink-3">Exact-Prefix Authorization:</span>
+              <span class="font-medium text-ink">${exactAuthText}</span>
+            </div>
+            ${countsHtml}
+            <div class="flex justify-between py-1.5">
+              <span class="text-ink-3">Validation Engine:</span>
+              <span class="font-mono-code text-ink text-xs">PathWatch RFC 6811 validation (RIPE NCC Routinator)</span>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4 p-3.5 rounded-xl text-xs" style="background: var(--callout-bg); border: 1px solid var(--callout-border); color: var(--callout-text);">
+          <div><strong>Stability observation:</strong> ${esc(rpki.stability_statement)}</div>
+          <div class="mt-2 text-ink-2 font-medium">ROA state as of 2026-10-14 (current lookup; not a historical 2024 snapshot).</div>
+        </div>
+      </div>
+
+      <!-- Evidence & Limitations Matrix -->
+      <div class="apple-glass p-5 sm:p-6 flex flex-col justify-between">
+        <div>
+          <h2 class="text-lg font-semibold mb-3.5 text-ink">Evidence &amp; Analytical Limitations</h2>
+          <div class="space-y-3 text-xs text-ink-2">
+            <div>
+              <strong class="text-ink">1. Observed BGP Events:</strong>
+              <span>${s.events ?? '—'} total updates (${s.announcements ?? '—'} A, ${s.withdrawals ?? '—'} W) collected via RIPE Stat from ${s.unique_source_ids ?? '—'} peers.</span>
+            </div>
+            <div>
+              <strong class="text-ink">2. Snapshot Route Differences:</strong>
+              <span>Snapshots are discrete samples. Differences describe observed collector state, not continuous table logs.</span>
+            </div>
+            <div>
+              <strong class="text-ink">3. Snapshot-Derived RPKI State:</strong>
+              <span>ROA validity is evaluated per snapshot checkpoint. Never described as continuously observed across unmeasured hours.</span>
+            </div>
+            <div>
+              <strong class="text-ink">4. Unsupported Metrics (Not Measured):</strong>
+              <span class="text-ink-3">Reachability, failover recovery times, multi-collector race comparison, and causality are unmeasured.</span>
+            </div>
+            <div>
+              <strong class="text-ink">5. Cannot Be Concluded:</strong>
+              <span class="text-ink-3">That RPKI status caused BGP path changes, or that missing route observations prove global unreachability.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ==========================================
+// TIMELINE GENERATOR (RESIZABLE & LINEAR SCALES)
+// ==========================================
+function initTimelineSVG(isFirstRender = false) {
+  const host = document.getElementById('svg-host');
+  const svg = document.getElementById('timeline-svg');
+  if (!host || !svg || !appData) return;
+
+  const w = Math.max(400, host.clientWidth || 960);
+  const h = 192;
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  svg.removeAttribute('preserveAspectRatio');
+
+  // Preserve <defs> gradients
+  const defs = svg.querySelector('defs');
+  svg.innerHTML = '';
+  if (defs) svg.appendChild(defs);
+
+  const sw = appData.study_window || {};
+  const startMs = parseUtc(sw.start);
+  const endMs = parseUtc(sw.end_exclusive);
+
+  if (isNaN(startMs) || isNaN(endMs) || endMs <= startMs) {
+    return;
+  }
+
+  const totalMs = endMs - startMs;
+  const rootFs = parseFloat(getComputedStyle(document.documentElement).fontSize) || 18;
+  const chartFs = Math.max(13, Math.round(rootFs * 0.75));
+  const titleFs = Math.max(13.5, Math.round(rootFs * 0.78));
+
+  const padL = Math.max(54, Math.round(chartFs * 3.9));
+  const padR = 25;
+  const padTop = Math.round(chartFs * 2.0);
+  const baseline = h - Math.round(chartFs * 1.8);
+  const plotW = w - padL - padR;
+  const plotH = baseline - padTop;
+
+  function xOf(ms) {
+    return padL + ((ms - startMs) / totalMs) * plotW;
+  }
+
+  // 12 6-hour UTC buckets
+  const numBuckets = 12;
+  const bucketDurationMs = 6 * 3600 * 1000;
+  const buckets = Array.from({ length: numBuckets }, (_, i) => {
+    const bStart = startMs + i * bucketDurationMs;
+    const bEnd = bStart + bucketDurationMs;
+    return {
+      index: i,
+      startMs: bStart,
+      endMs: bEnd,
+      startLabel: new Date(bStart).toISOString().slice(0, 16).replace('T', ' ') + ' UTC',
+      endLabel: new Date(bEnd).toISOString().slice(0, 16).replace('T', ' ') + ' UTC',
+      A: 0,
+      W: 0,
+      unknown: 0,
+      total: 0,
+    };
+  });
+
+  let outOfWindow = 0;
+  let unparseable = 0;
+
+  const timelineEvents = appData.timeline_events || [];
+  timelineEvents.forEach(e => {
+    const t = parseUtc(e.t);
+    if (isNaN(t)) {
+      unparseable++;
+      return;
+    }
+    if (t < startMs || t >= endMs) {
+      outOfWindow++;
+      return;
+    }
+    const idx = Math.min(numBuckets - 1, Math.max(0, Math.floor((t - startMs) / bucketDurationMs)));
+    if (e.type === 'W') {
+      buckets[idx].W++;
+    } else if (e.type === 'A') {
+      buckets[idx].A++;
+    } else {
+      buckets[idx].unknown++;
+    }
+    buckets[idx].total++;
+  });
+
+  const notesEl = document.getElementById('timeline-notes');
+  if (notesEl) {
+    const notes = [];
+    if (outOfWindow > 0) notes.push(`${outOfWindow} event(s) outside query window`);
+    if (unparseable > 0) notes.push(`${unparseable} event(s) with unparseable timestamps`);
+    notesEl.textContent = notes.length ? `Note: ${notes.join(', ')}.` : '';
+  }
+
+  const maxVal = Math.max(1, ...buckets.map(b => b.total));
+
+  // Compute clean niceMax with 4 uniform intervals
+  function computeNiceMax(val) {
+    if (val <= 0) return 4;
+    const roughTick = val / 4;
+    const pow10 = Math.pow(10, Math.floor(Math.log10(roughTick)));
+    const frac = roughTick / pow10;
+    let niceTick;
+    if (frac <= 1.0) niceTick = 1.0 * pow10;
+    else if (frac <= 2.0) niceTick = 2.0 * pow10;
+    else if (frac <= 2.5) niceTick = 2.5 * pow10;
+    else if (frac <= 5.0) niceTick = 5.0 * pow10;
+    else niceTick = 10.0 * pow10;
+    return Math.round(niceTick * 4);
+  }
+
+  const niceMax = computeNiceMax(maxVal);
+
+  // Horizontal Gridlines & Y-Axis Labels at exact 0, 1/4, 1/2, 3/4, 1 of niceMax
+  [0, 0.25, 0.5, 0.75, 1.0].forEach((frac) => {
+    const y = baseline - frac * plotH;
+    const val = Math.round(frac * niceMax);
+
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', String(padL));
+    line.setAttribute('x2', String(w - padR));
+    line.setAttribute('y1', String(y));
+    line.setAttribute('y2', String(y));
+    line.setAttribute('stroke', 'var(--chart-gridline)');
+    line.setAttribute('stroke-width', '1');
+    if (frac > 0) line.setAttribute('stroke-dasharray', '3 3');
+    svg.appendChild(line);
+
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', String(padL - 8));
+    text.setAttribute('y', String(y + 4));
+    text.setAttribute('text-anchor', 'end');
+    text.setAttribute('fill', 'var(--chart-axis-text)');
+    text.setAttribute('font-size', String(chartFs));
+    text.setAttribute('font-family', 'var(--font-mono)');
+    text.textContent = String(val);
+    svg.appendChild(text);
+  });
+
+  // Axis Title
+  const axisTitle = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  axisTitle.setAttribute('x', String(padL));
+  axisTitle.setAttribute('y', String(padTop - 8));
+  axisTitle.setAttribute('fill', 'var(--chart-axis-text)');
+  axisTitle.setAttribute('font-size', String(titleFs));
+  axisTitle.setAttribute('font-weight', '500');
+  axisTitle.setAttribute('font-family', 'var(--font-mono)');
+  axisTitle.textContent = 'Events / 6h bin';
+  svg.appendChild(axisTitle);
+
+  // Day ticks and labels inside SVG
+  for (let ms = startMs; ms <= endMs; ms += 6 * 3600 * 1000) {
+    const x = xOf(ms);
+    const d = new Date(ms);
+    const isMidnight = (d.getUTCHours() === 0);
+    const isEnd = (ms === endMs);
+
+    const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    tick.setAttribute('x1', String(x));
+    tick.setAttribute('x2', String(x));
+    tick.setAttribute('y1', String(baseline));
+    tick.setAttribute('y2', String(baseline + (isMidnight || isEnd ? 6 : 3)));
+    tick.setAttribute('stroke', 'var(--chart-gridline)');
+    tick.setAttribute('stroke-width', '1');
+    svg.appendChild(tick);
+
+    if (isMidnight || isEnd) {
+      const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      label.setAttribute('x', String(x));
+      label.setAttribute('y', String(baseline + chartFs + 3));
+      label.setAttribute('text-anchor', ms === startMs ? 'start' : (isEnd ? 'end' : 'middle'));
+      label.setAttribute('fill', 'var(--chart-axis-text)');
+      label.setAttribute('font-size', String(chartFs));
+      label.setAttribute('font-family', 'var(--font-mono)');
+      const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+      label.textContent = isEnd ? `${dateStr} (End)` : `${dateStr} 00:00`;
+      svg.appendChild(label);
+    }
+  }
+
+  // Snapshot Checkpoints with Guides & Diamonds
+  const snapSet = new Set();
+  (appData.snapshots || []).forEach(s => {
+    if (s.comparison) {
+      if (s.comparison.from_timestamp) snapSet.add(s.comparison.from_timestamp);
+      if (s.comparison.to_timestamp) snapSet.add(s.comparison.to_timestamp);
+    }
+  });
+
+  const sortedSnaps = Array.from(snapSet).sort();
+  const rpki = appData.rpki_status || {};
+  const roa = (rpki.covering_roas || [])[0] || {};
+  const roaOrigin = roa.origin_asn ? `AS${roa.origin_asn}` : '—';
+  const roaMax = roa.max_length ? `/${roa.max_length}` : '—';
+
+  sortedSnaps.forEach(ts => {
+    const snapMs = parseUtc(ts);
+    if (isNaN(snapMs) || snapMs < startMs || snapMs > endMs) return;
+
+    const x = xOf(snapMs);
+
+    const guide = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    guide.setAttribute('x1', String(x));
+    guide.setAttribute('x2', String(x));
+    guide.setAttribute('y1', String(padTop - 8));
+    guide.setAttribute('y2', String(baseline));
+    guide.setAttribute('stroke', 'var(--chart-checkpoint)');
+    guide.setAttribute('stroke-dasharray', '2 2');
+    guide.setAttribute('stroke-width', '1.2');
+    svg.appendChild(guide);
+
+    const diamond = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    diamond.setAttribute('points', `${x},${padTop - 13} ${x + 5},${padTop - 8} ${x},${padTop - 3} ${x - 5},${padTop - 8}`);
+    diamond.setAttribute('fill', 'var(--chart-checkpoint)');
+    diamond.style.cursor = 'pointer';
+
+    const snapTitle = `${cleanTime(ts)} UTC Checkpoint`;
+    const snapBody = `Daily route state checkpoint<br>Nominal 12:00 UTC (actual capture time within this UTC date not recorded; same-day events &plusmn;24h ambiguous)<br>Covering ROA: Valid ${roaOrigin} ${roaMax}`;
+
+    diamond.addEventListener('mouseenter', (e) => showTooltip(e, snapTitle, snapBody));
+    diamond.addEventListener('mousemove', moveTooltip);
+    diamond.addEventListener('mouseleave', hideTooltip);
+    svg.appendChild(diamond);
+  });
+
+  // Stacked Bars & Interactive Hit-Rects
+  buckets.forEach((b) => {
+    const bStartX = xOf(b.startMs);
+    const bEndX = xOf(b.endMs);
+    const inset = 3;
+    const barX = bStartX + inset;
+    const barW = Math.max(2, (bEndX - bStartX) - 2 * inset);
+
+    const hA = (b.A / niceMax) * plotH;
+    const hW_raw = (b.W / niceMax) * plotH;
+    const hW = b.W > 0 ? Math.max(3, hW_raw) : 0;
+
+    const yA = baseline - hA;
+    const yW = yA - hW;
+
+    // Announcement bar
+    if (b.A > 0) {
+      const rectA = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rectA.setAttribute('class', 'timeline-bar');
+      rectA.setAttribute('x', String(barX));
+      rectA.setAttribute('y', String(yA));
+      rectA.setAttribute('width', String(barW));
+      rectA.setAttribute('height', String(hA));
+      rectA.setAttribute('rx', '3');
+      rectA.setAttribute('ry', '3');
+      rectA.setAttribute('fill', 'url(#announcementGrad)');
+      svg.appendChild(rectA);
+    }
+
+    // Withdrawal bar stacked on top
+    if (b.W > 0) {
+      const rectW = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rectW.setAttribute('class', 'timeline-bar');
+      rectW.setAttribute('x', String(barX));
+      rectW.setAttribute('y', String(yW));
+      rectW.setAttribute('width', String(barW));
+      rectW.setAttribute('height', String(hW));
+      rectW.setAttribute('rx', '2');
+      rectW.setAttribute('ry', '2');
+      rectW.setAttribute('fill', 'url(#withdrawalGrad)');
+      svg.appendChild(rectW);
+    }
+
+    // Full-height hit-rect for hover & keyboard focus
+    const hitRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    hitRect.setAttribute('x', String(barX));
+    hitRect.setAttribute('y', String(padTop));
+    hitRect.setAttribute('width', String(barW));
+    hitRect.setAttribute('height', String(plotH));
+    hitRect.setAttribute('fill', 'transparent');
+    hitRect.setAttribute('tabindex', '0');
+    hitRect.setAttribute('aria-label', `Bin ${b.index + 1}: ${b.startLabel} to ${b.endLabel}, ${b.A} announcements, ${b.W} withdrawals`);
+    hitRect.style.cursor = 'pointer';
+
+    const binTitle = `${b.startLabel} &rarr; ${b.endLabel}`;
+    let binBody = `<strong>${b.A}</strong> announcements, <strong>${b.W}</strong> withdrawals (Total: ${b.total})`;
+    if (b.unknown > 0) binBody += `<br><span class="text-ink-3">Unknown type: ${b.unknown}</span>`;
+
+    hitRect.addEventListener('mouseenter', (e) => showTooltip(e, binTitle, binBody));
+    hitRect.addEventListener('mousemove', moveTooltip);
+    hitRect.addEventListener('mouseleave', hideTooltip);
+
+    hitRect.addEventListener('focus', (e) => showTooltip(e, binTitle, binBody));
+    hitRect.addEventListener('blur', hideTooltip);
+    hitRect.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') hideTooltip();
+    });
+
+    svg.appendChild(hitRect);
+  });
+
+  // Render Table View in <details>
+  const tableView = document.getElementById('timeline-table-view');
+  if (tableView) {
+    tableView.innerHTML = `
+      <table class="w-full text-left text-xs border-collapse">
+        <thead class="table-sticky-header">
+          <tr class="text-xs uppercase font-mono-code">
+            <th scope="col" class="py-2 px-3">Bin</th>
+            <th scope="col" class="py-2 px-3">Start (UTC)</th>
+            <th scope="col" class="py-2 px-3">End (UTC)</th>
+            <th scope="col" class="py-2 px-3">Announcements</th>
+            <th scope="col" class="py-2 px-3">Withdrawals</th>
+            <th scope="col" class="py-2 px-3">Total</th>
+          </tr>
+        </thead>
+        <tbody class="font-mono-code">
+          ${buckets.map(b => `
+            <tr class="table-divider-row table-row-hover">
+              <td class="py-1.5 px-3 font-semibold text-ink">${b.index + 1}</td>
+              <td class="py-1.5 px-3 text-ink-2">${esc(b.startLabel)}</td>
+              <td class="py-1.5 px-3 text-ink-2">${esc(b.endLabel)}</td>
+              <td class="py-1.5 px-3 font-medium text-accent">${b.A}</td>
+              <td class="py-1.5 px-3 font-medium text-teal">${b.W}</td>
+              <td class="py-1.5 px-3 font-bold text-ink">${b.total}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  // Setup ResizeObserver once
+  if (!timelineResizeObserver) {
+    const container = document.getElementById('timeline-chart-container');
+    if (container) {
+      timelineResizeObserver = new ResizeObserver(() => {
+        clearTimeout(timelineResizeDebounce);
+        timelineResizeDebounce = setTimeout(() => {
+          if (currentView === 'overview' && appData) {
+            initTimelineSVG(false);
+          }
+        }, 80);
+      });
+      timelineResizeObserver.observe(container);
+    }
+  }
+}
+
+// ==========================================
+// VIEW 2: ROUTE EVENTS
+// ==========================================
+function renderRouteEventsView() {
+  const container = document.getElementById('view-container');
+  container.innerHTML = `
+    <div class="apple-glass p-5 sm:p-6 flex flex-col gap-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-line pb-3.5">
+        <div>
+          <h1 class="text-lg font-semibold text-ink">Route Events Explorer</h1>
+          <p class="text-xs text-ink-2">Filter and search actual collected BGP announcements and withdrawals</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <a id="export-csv-btn" href="/api/events.csv" class="apple-glass-pill px-3.5 py-2 text-xs font-medium flex items-center gap-2 transition-all cursor-pointer btn-press btn-theme" download>
+            <!-- Download SVG -->
+            <svg class="w-4 h-4 fill-current text-accent" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            Export Filtered CSV
+          </a>
+        </div>
+      </div>
+
+      <!-- Search & Filters Toolbar -->
+      <div class="flex flex-wrap items-center gap-3 text-xs">
+        <input id="events-search-input" type="text" placeholder="Search prefix, source ID, ASN..." value="${esc(eventFilterState.q)}"
+          class="apple-glass-pill px-3.5 py-2 text-xs font-mono-code w-64 input-theme">
+
+        <select id="events-type-select" class="apple-glass-pill px-3.5 py-2 text-xs select-theme">
+          <option value="all" ${eventFilterState.event_type==='all'?'selected':''}>All Event Types</option>
+          <option value="A" ${eventFilterState.event_type==='A'?'selected':''}>Announcements (A)</option>
+          <option value="W" ${eventFilterState.event_type==='W'?'selected':''}>Withdrawals (W)</option>
+        </select>
+
+        <select id="events-rpki-select" class="apple-glass-pill px-3.5 py-2 text-xs select-theme">
+          <option value="all" ${eventFilterState.rpki_state==='all'?'selected':''}>All RPKI States</option>
+          <option value="Valid" ${eventFilterState.rpki_state==='Valid'?'selected':''}>Valid</option>
+          <option value="Unassigned" ${eventFilterState.rpki_state==='Unassigned'?'selected':''}>Unassigned</option>
+        </select>
+
+        <select id="events-sort-select" class="apple-glass-pill px-3.5 py-2 text-xs select-theme">
+          <option value="timestamp_desc" ${eventFilterState.sort==='timestamp_desc'?'selected':''}>Newest First</option>
+          <option value="timestamp_asc" ${eventFilterState.sort==='timestamp_asc'?'selected':''}>Oldest First</option>
+          <option value="path_length_desc" ${eventFilterState.sort==='path_length_desc'?'selected':''}>Longest Path</option>
+          <option value="path_length_asc" ${eventFilterState.sort==='path_length_asc'?'selected':''}>Shortest Path</option>
+        </select>
+
+        <span id="events-count-label" class="text-xs ml-auto font-mono-code text-ink-3">Loading...</span>
+      </div>
+
+      <!-- Events Table -->
+      <div class="overflow-x-auto rounded-[16px] table-container shadow-sm">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead class="table-sticky-header">
+            <tr class="text-xs uppercase font-mono-code tracking-wider">
+              <th scope="col" class="py-2.5 px-3.5 whitespace-nowrap">Timestamp (UTC)</th>
+              <th scope="col" class="py-2.5 px-3.5 whitespace-nowrap">Type</th>
+              <th scope="col" class="py-2.5 px-3.5 whitespace-nowrap">Prefix</th>
+              <th scope="col" class="py-2.5 px-3.5 whitespace-nowrap">Source ID</th>
+              <th scope="col" class="py-2.5 px-3.5 whitespace-nowrap">Origin AS</th>
+              <th scope="col" class="py-2.5 px-3.5 whitespace-nowrap">AS Path</th>
+              <th scope="col" class="py-2.5 px-3.5 whitespace-nowrap">RPKI State</th>
+              <th scope="col" class="py-2.5 px-3.5 whitespace-nowrap">Snapshot Used</th>
+              <th scope="col" class="py-2.5 px-3.5 whitespace-nowrap">Gap</th>
+            </tr>
+          </thead>
+          <tbody id="events-tbody" class="font-mono-code">
+            <tr><td colspan="9" class="p-8 text-center text-ink-3">Loading route events...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination Footer -->
+      <div class="flex items-center justify-between text-xs font-mono-code pt-1 text-ink-2">
+        <span id="pagination-status">Page 1 of 1</span>
+        <div class="flex items-center gap-2">
+          <button id="prev-page-btn" class="px-3.5 py-1.5 rounded-lg btn-theme disabled:opacity-40 disabled:cursor-not-allowed transition-all btn-press" onclick="changeEventsPage(-1)">Previous</button>
+          <button id="next-page-btn" class="px-3.5 py-1.5 rounded-lg btn-theme disabled:opacity-40 disabled:cursor-not-allowed transition-all btn-press" onclick="changeEventsPage(1)">Next</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Attach listeners
+  const searchInput = document.getElementById('events-search-input');
+  let searchDebounce;
+  searchInput.addEventListener('input', (e) => {
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => {
+      eventFilterState.q = e.target.value;
+      eventFilterState.page = 1;
+      fetchFilteredEvents();
+    }, 200);
+  });
+
+  document.getElementById('events-type-select').addEventListener('change', (e) => {
+    eventFilterState.event_type = e.target.value;
+    eventFilterState.page = 1;
+    fetchFilteredEvents();
+  });
+
+  document.getElementById('events-rpki-select').addEventListener('change', (e) => {
+    eventFilterState.rpki_state = e.target.value;
+    eventFilterState.page = 1;
+    fetchFilteredEvents();
+  });
+
+  document.getElementById('events-sort-select').addEventListener('change', (e) => {
+    eventFilterState.sort = e.target.value;
+    fetchFilteredEvents();
+  });
+
+  fetchFilteredEvents();
+}
+
+async function fetchFilteredEvents() {
+  const seq = ++eventsFetchSeq;
+  if (eventsAbortController) {
+    eventsAbortController.abort();
+  }
+  eventsAbortController = new AbortController();
+
+  const params = new URLSearchParams({
+    q: eventFilterState.q,
+    event_type: eventFilterState.event_type,
+    rpki_state: eventFilterState.rpki_state,
+    sort: eventFilterState.sort,
+    page: eventFilterState.page,
+    page_size: eventFilterState.page_size,
+  });
+
+  const csvBtn = document.getElementById('export-csv-btn');
+  if (csvBtn) csvBtn.href = `/api/events.csv?${params.toString()}`;
+
+  try {
+    const res = await fetch(`/api/events?${params.toString()}`, { signal: eventsAbortController.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (seq === eventsFetchSeq) {
+      renderEventsTableRows(data);
+    }
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    if (seq === eventsFetchSeq) {
+      const tbody = document.getElementById('events-tbody');
+      if (tbody) tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-bad">Error loading events: ${esc(err.message)}</td></tr>`;
+    }
+  }
+}
+
+function renderEventsTableRows(data) {
+  const tbody = document.getElementById('events-tbody');
+  const countLabel = document.getElementById('events-count-label');
+  const pagLabel = document.getElementById('pagination-status');
+  const prevBtn = document.getElementById('prev-page-btn');
+  const nextBtn = document.getElementById('next-page-btn');
+
+  const items = data.events || [];
+  const pag = data.pagination || {};
+
+  if (countLabel) countLabel.textContent = `Showing ${items.length} of ${pag.total_filtered} matching (${pag.total_unfiltered} total)`;
+  if (pagLabel) pagLabel.textContent = `Page ${pag.page} of ${pag.total_pages}`;
+  if (prevBtn) prevBtn.disabled = !pag.has_prev;
+  if (nextBtn) nextBtn.disabled = !pag.has_next;
+
+  if (items.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-ink-3">No events matched the current filter.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = items.map(e => {
+    const isW = e.event_type === 'W';
+    const typeColorClass = isW ? 'text-teal' : 'text-accent';
+    const typeLabel = isW ? 'Withdrawal' : 'Announcement';
+    const rowClass = isW ? 'border-l-[3px] border-teal bg-teal/5' : '';
+
+    const originDisplay = (e.origin_as !== null && e.origin_as !== undefined)
+      ? `AS${e.origin_as}`
+      : `<span class="text-ink-3" title="Withdrawal message carries no origin AS per RFC 6811">&mdash;</span>`;
+
+    let rpkiBadge;
+    if (e.rpki_state === 'Valid') {
+      rpkiBadge = `<span class="inline-flex items-center gap-1 font-medium badge-rpki-valid px-2 py-0.5 rounded text-xs">Valid</span>`;
+    } else if (e.rpki_state === 'Unassigned') {
+      rpkiBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs text-teal border border-dashed border-teal/40" title="${esc(e.rpki_reason || 'Unassigned origin per RFC 6811')}">Unassigned</span>`;
+    } else if (e.rpki_state) {
+      rpkiBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs text-ink-2 border border-dashed border-line">${esc(e.rpki_state)}</span>`;
+    } else {
+      rpkiBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs text-ink-3" title="${esc(e.rpki_reason || 'State not recorded')}">&mdash;</span>`;
+    }
+
+    return `
+      <tr class="table-divider-row table-row-hover transition-colors ${rowClass}">
+        <td class="py-2.5 px-3.5 whitespace-nowrap text-ink">${esc(cleanTime(e.timestamp))}</td>
+        <td class="py-2.5 px-3.5 whitespace-nowrap font-medium ${typeColorClass}">${typeLabel}</td>
+        <td class="py-2.5 px-3.5 whitespace-nowrap text-ink">${esc(e.prefix ?? '—')}</td>
+        <td class="py-2.5 px-3.5 whitespace-nowrap text-ink-2">${esc(e.source_id ?? '—')}</td>
+        <td class="py-2.5 px-3.5 whitespace-nowrap">${originDisplay}</td>
+        <td class="py-2.5 px-3.5 whitespace-nowrap max-w-xs truncate text-ink" title="${Array.isArray(e.as_path) ? e.as_path.join(' \u2192 ') : ''}">
+          ${isW ? `<span class="text-ink-3">&mdash; withdrawn</span>` : formatPath(e.as_path)}
+        </td>
+        <td class="py-2.5 px-3.5 whitespace-nowrap">${rpkiBadge}</td>
+        <td class="py-2.5 px-3.5 whitespace-nowrap text-ink-2">${esc(e.snapshot_used || '—')}</td>
+        <td class="py-2.5 px-3.5 whitespace-nowrap text-ink-3">${esc(e.snapshot_gap || '—')}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function changeEventsPage(delta) {
+  eventFilterState.page = Math.max(1, eventFilterState.page + delta);
+  fetchFilteredEvents();
+}
+
+// ==========================================
+// VIEW 3: AS PATHS
+// ==========================================
+function renderASPaths() {
+  const dist = appData.path_length_distribution || {};
+  const stats = appData.path_stats || {};
+  const total = stats.count ?? 0;
+  const sequences = (appData.sequences || []).filter(s => s.sequence_type === 'announced_path_changed');
+
+  // Compute modal path length dynamically from distribution keys
+  let modalLen = null;
+  let maxCount = -1;
+  const sortedLens = Object.keys(dist).sort((a, b) => Number(a) - Number(b));
+  for (const len of sortedLens) {
+    const c = dist[len];
+    if (c > maxCount) {
+      maxCount = c;
+      modalLen = len;
+    }
+  }
+
+  return `
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <!-- Path Length Distribution -->
+      <div class="lg:col-span-5 apple-glass p-5 sm:p-6 flex flex-col justify-between">
+        <div>
+          <h2 class="text-lg font-semibold mb-1 text-ink">AS-Path Length Distribution</h2>
+          <p class="text-xs mb-4 text-ink-2">${total} announcements with observed AS path</p>
+          <div class="space-y-3.5">
+            ${sortedLens.map(len => {
+              const count = dist[len];
+              const pct = total > 0 ? (count / total * 100).toFixed(1) : '0.0';
+              const isModal = String(len) === String(modalLen);
+              const labelColor = isModal ? 'text-accent font-semibold' : 'text-ink-2';
+              const countColor = isModal ? 'text-accent font-semibold' : 'text-ink';
+              return `
+                <div class="flex flex-col gap-1.5">
+                  <div class="flex justify-between text-xs font-mono-code">
+                    <span class="${labelColor}">Length ${len} hops ${isModal ? '(modal)' : ''}</span>
+                    <span class="${countColor}">${count} (${pct}%)</span>
+                  </div>
+                  <div class="w-full h-2 rounded-full overflow-hidden" style="background-color: var(--chart-dist-bg);">
+                    <div class="h-full rounded-full transition-all duration-300" style="width: ${pct}%; background-color: var(--chart-dist-fill);"></div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+        <div class="pt-3.5 border-t border-line flex justify-between text-xs font-mono-code mt-6 text-ink-2">
+          <span>Min: ${stats.min ?? '—'} hops</span>
+          <span>Avg: ${stats.average ?? '—'} hops</span>
+          <span>Max: ${stats.max ?? '—'} hops</span>
+        </div>
+      </div>
+
+      <!-- Path Changes Reconstruction -->
+      <div class="lg:col-span-7 apple-glass p-5 sm:p-6 flex flex-col justify-between">
+        <div>
+          <h2 class="text-lg font-semibold mb-1 text-ink">Observed AS-Path Changes</h2>
+          <p class="text-xs mb-4 text-ink-2">Reconstructed sequential route transitions for prefix/source pairs</p>
+          <div class="grid grid-cols-2 gap-4 mb-4">
+            <div class="apple-glass-pill p-3.5">
+              <span class="text-xs font-semibold uppercase tracking-wider text-ink-3">Observed Path Changes</span>
+              <div class="text-3xl font-semibold tabular-nums tracking-tight mt-1 text-ink">${appData.summary.path_changes ?? '—'}</div>
+            </div>
+            <div class="apple-glass-pill p-3.5">
+              <span class="text-xs font-semibold uppercase tracking-wider text-ink-3">Announcements After Withdrawals</span>
+              <div class="text-3xl font-semibold tabular-nums tracking-tight mt-1 text-ink">${appData.summary.announcements_after_withdrawals ?? '—'}</div>
+            </div>
+          </div>
+          <div class="p-3.5 rounded-xl border border-line bg-surface/40 text-xs">
+            <strong class="text-ink">Analytical Notice:</strong> An observed AS-path change represents routing convergence or policy shifts at a peer collector. It does not establish unreachability, packet loss, a hijack, or that an RPKI state change caused the path modification.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reconstructed Path Change Samples Table -->
+    <div class="apple-glass p-5 sm:p-6">
+      <h3 class="text-lg font-semibold mb-3 text-ink">Sample Reconstructed AS-Path Changes</h3>
+      <div class="overflow-x-auto rounded-[16px] table-container shadow-sm">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead class="table-sticky-header">
+            <tr class="text-xs uppercase font-mono-code">
+              <th scope="col" class="py-2.5 px-3.5">Timestamp (UTC)</th>
+              <th scope="col" class="py-2.5 px-3.5">Source ID</th>
+              <th scope="col" class="py-2.5 px-3.5">Previous AS Path</th>
+              <th scope="col" class="py-2.5 px-3.5">New AS Path</th>
+            </tr>
+          </thead>
+          <tbody class="font-mono-code">
+            ${sequences.slice(0, 15).map(s => `
+              <tr class="table-divider-row table-row-hover transition-colors">
+                <td class="py-2.5 px-3.5 whitespace-nowrap text-ink">${esc(cleanTime(s.timestamp))}</td>
+                <td class="py-2.5 px-3.5 whitespace-nowrap text-ink-2">${esc(s.source_id)}</td>
+                <td class="py-2.5 px-3.5 whitespace-nowrap text-ink-3">${formatPath(s.previous_path)}</td>
+                <td class="py-2.5 px-3.5 whitespace-nowrap text-ink">${formatPath(s.new_path)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+// ==========================================
+// VIEW 4: RPKI SNAPSHOTS
+// ==========================================
+const DATE_SEMANTICS_NOTE = "Daily sample (nominal 12:00 UTC; actual capture time within this UTC date not recorded; same-day events &plusmn;24h ambiguous).";
+
+function renderSnapshots() {
+  const snapshots = appData.snapshots || [];
+  const roas = appData.rpki_status.covering_roas || [];
+  const rpkiHistory = (appData.rpki_history_summary || {}).snapshots || [];
+
+  return `
+    ${rpkiHistory.length ? `
+    <div class="apple-glass p-5 sm:p-6 flex flex-col gap-4">
+      <div><h2 class="text-lg font-semibold text-ink">Historical RPKI Archive Checkpoints</h2>
+        <p class="text-xs text-ink-2 mt-1">Daily archived ROA snapshots used by the historical correlation pipeline; date labels are nominal and do not imply continuous state.</p></div>
+      <div class="overflow-x-auto rounded-[16px] table-container shadow-sm">
+        <table class="w-full text-left text-xs border-collapse"><thead class="table-sticky-header"><tr class="text-xs uppercase font-mono-code">
+          <th class="py-2.5 px-3.5">Snapshot time</th><th class="py-2.5 px-3.5">Archive file</th><th class="py-2.5 px-3.5">Prefix</th><th class="py-2.5 px-3.5">Origin AS</th><th class="py-2.5 px-3.5">Inferred state</th><th class="py-2.5 px-3.5">Usable VRPs</th>
+        </tr></thead><tbody>${rpkiHistory.map(row => `
+          <tr class="table-divider-row table-row-hover"><td class="py-2.5 px-3.5 whitespace-nowrap">${esc(row.snapshot_time || '—')}</td><td class="py-2.5 px-3.5">${esc(row.snapshot_file || '—')}</td><td class="py-2.5 px-3.5 font-mono-code">${esc(row.target_prefix || '—')}</td><td class="py-2.5 px-3.5">${row.observed_origin_as == null ? '—' : `AS${esc(row.observed_origin_as)}`}</td><td class="py-2.5 px-3.5">${esc(row.validation_state || 'Unassigned')}</td><td class="py-2.5 px-3.5">${row.usable_vrp_count == null ? '—' : esc(row.usable_vrp_count)}</td></tr>
+        `).join('')}</tbody></table>
+      </div>
+    </div>` : ''}
+    <div class="apple-glass p-5 sm:p-6 flex flex-col gap-4">
+      <div class="flex items-center justify-between border-b border-line pb-3.5">
+        <div>
+          <h2 class="text-lg font-semibold text-ink">RPKI Validation Snapshots</h2>
+          <p class="text-xs text-ink-2">Discrete daily RPKI attestations and route-table comparison checkpoints</p>
+        </div>
+      </div>
+
+      <!-- ROA Attestation Summary Table -->
+      <div class="overflow-x-auto rounded-[16px] table-container shadow-sm">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead class="table-sticky-header">
+            <tr class="text-xs uppercase font-mono-code">
+              <th scope="col" class="py-2.5 px-3.5">Snapshot Reference</th>
+              <th scope="col" class="py-2.5 px-3.5">Target Prefix</th>
+              <th scope="col" class="py-2.5 px-3.5">Origin ASN</th>
+              <th scope="col" class="py-2.5 px-3.5">Max Length</th>
+              <th scope="col" class="py-2.5 px-3.5">Derived State</th>
+              <th scope="col" class="py-2.5 px-3.5">Date Semantics</th>
+            </tr>
+          </thead>
+          <tbody class="font-mono-code">
+            ${roas.map(r => `
+              <tr class="table-divider-row table-row-hover transition-colors">
+                <td class="py-2.5 px-3.5 whitespace-nowrap text-ink">${esc(r.snapshot)}</td>
+                <td class="py-2.5 px-3.5 whitespace-nowrap text-ink">${esc(r.prefix)}</td>
+                <td class="py-2.5 px-3.5 whitespace-nowrap text-ink">AS${esc(r.origin_asn)}</td>
+                <td class="py-2.5 px-3.5 whitespace-nowrap text-ink">/${esc(r.max_length)}</td>
+                <td class="py-2.5 px-3.5 whitespace-nowrap">
+                  <span class="inline-flex items-center gap-1 font-medium badge-rpki-valid px-2 py-0.5 rounded text-xs">Valid</span>
+                </td>
+                <td class="py-2.5 px-3.5 text-ink-2">${DATE_SEMANTICS_NOTE}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+      <p class="text-xs text-ink-2">
+        <strong class="text-ink">Explicit state policy:</strong> No ROA changes were observed across the study window. Missing or unmeasured snapshots have no carry-forward.
+      </p>
+    </div>
+
+    <!-- Snapshot Comparisons -->
+    <div class="space-y-4">
+      <h3 class="text-lg font-semibold text-ink">Consecutive Route Snapshot Comparisons</h3>
+      ${snapshots.map(s => {
+        const c = s.comparison || {};
+        const r = s.route_record_counts || {};
+        const changed = s.changed_paths_sample || [];
+
+        // Compute dynamic interval
+        const fromMs = parseUtc(c.from_timestamp);
+        const toMs = parseUtc(c.to_timestamp);
+        let intervalLabel = "24h Interval";
+        if (!isNaN(fromMs) && !isNaN(toMs) && toMs > fromMs) {
+          const diffH = Math.round((toMs - fromMs) / (3600 * 1000));
+          intervalLabel = `${diffH}h Interval`;
+        }
+
+        return `
+          <div class="apple-glass p-5 sm:p-6">
+            <div class="flex items-center justify-between border-b border-line pb-3 mb-4">
+              <span class="font-mono-code text-xs font-semibold text-ink">
+                ${esc(cleanTime(c.from_timestamp))} &rarr; ${esc(cleanTime(c.to_timestamp))} UTC
+              </span>
+              <span class="text-xs font-mono-code text-ink-3">${intervalLabel}</span>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-5 gap-3.5 mb-4">
+              <div class="apple-glass-pill p-3">
+                <div class="text-xs text-ink-3">Routes Before</div>
+                <div class="text-lg font-semibold mt-0.5 text-ink">${r.before ?? '—'}</div>
+              </div>
+              <div class="apple-glass-pill p-3">
+                <div class="text-xs text-ink-3">Routes After</div>
+                <div class="text-lg font-semibold mt-0.5 text-ink">${r.after ?? '—'}</div>
+              </div>
+              <div class="apple-glass-pill p-3">
+                <div class="text-xs text-ink-3">New Keys</div>
+                <div class="text-lg font-semibold mt-0.5 text-ink">${s.observed_new_route_keys ?? 0}</div>
+              </div>
+              <div class="apple-glass-pill p-3">
+                <div class="text-xs text-ink-3">Missing Keys</div>
+                <div class="text-lg font-semibold mt-0.5 text-ink">${s.observed_missing_route_keys ?? 0}</div>
+              </div>
+              <div class="apple-glass-pill p-3">
+                <div class="text-xs text-ink-3">Changed Paths</div>
+                <div class="text-lg font-semibold mt-0.5 text-accent">${s.observed_changed_as_paths ?? 0}</div>
+              </div>
+            </div>
+            ${changed.length ? `
+              <div class="mt-3.5">
+                <div class="text-xs font-semibold mb-2 text-ink">Changed Path Samples:</div>
+                <div class="space-y-1.5 font-mono-code text-xs text-ink-2">
+                  ${changed.slice(0, 3).map(p => `
+                    <div class="p-2.5 rounded-lg border border-line bg-surface/40">
+                      <span class="font-medium text-ink">${esc(p.source_id)}:</span>
+                      ${formatPath(p.old_path)} <span class="text-accent">&rarr;</span> ${formatPath(p.new_path)}
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            ` : ''}
+            <div class="text-xs mt-3.5 pt-2.5 border-t border-line text-ink-3">
+              ${esc(s.interpretation_warning || 'Snapshot differences describe observed collector state, not the complete global routing table.')}
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+// ==========================================
+// VIEW: LIVE RIS MONITOR
+// ==========================================
+async function renderLiveMonitor() {
+  const container = document.getElementById('view-container');
+  if (!container) return;
+  container.innerHTML = `
+    <section class="apple-glass p-5 sm:p-7 space-y-4">
+      <div class="flex flex-wrap items-start justify-between gap-4">
+        <div><div class="text-xs uppercase tracking-widest text-ink-3">Live telemetry</div>
+          <h2 class="text-2xl font-semibold text-ink mt-1">RIPE RIS Live Monitor</h2>
+          <p class="text-sm text-ink-2 mt-2 max-w-3xl">Opt-in WebSocket monitoring for the exact study prefix <span class="font-mono-code">193.0.0.0/21</span>. The bundled VRP evidence is scoped to this prefix, so the default subscription deliberately excludes more-specifics. Live observations are kept in a bounded in-memory buffer and are not mixed with the historical study.</p>
+        </div>
+        <div class="flex gap-2"><button id="live-start-btn" class="apple-glass-pill px-4 py-2 text-xs font-semibold text-ink border border-line" onclick="controlLiveMonitor('start')">Start monitoring</button><button id="live-stop-btn" class="apple-glass-pill px-4 py-2 text-xs font-semibold text-ink border border-line" onclick="controlLiveMonitor('stop')">Stop</button></div>
+      </div>
+      <div id="live-status-panel" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3"><div class="text-sm text-ink-2">Loading monitor status…</div></div>
+      <div id="live-validation-note" class="rounded-xl border border-line p-3 text-xs text-ink-2">Loading validation-data provenance…</div>
+    </section>
+    <section class="apple-glass p-5 sm:p-7 space-y-3">
+      <div class="flex items-center justify-between gap-3"><h3 class="text-lg font-semibold text-ink">Recent live announcements and withdrawals</h3><span id="live-refresh-label" class="text-xs text-ink-3">Refreshing while this view is open</span></div>
+      <div id="live-events-table" class="overflow-x-auto text-sm text-ink-2">No live events received yet. Start monitoring to connect to RIS Live.</div>
+    </section>`;
+  await refreshLiveMonitor();
+  if (currentView === 'live' && !livePollTimer) livePollTimer = setInterval(refreshLiveMonitor, 3000);
+}
+
+async function refreshLiveMonitor() {
+  if (currentView !== 'live') return;
+  try {
+    const [statusRes, eventsRes] = await Promise.all([fetch('/api/live/status'), fetch('/api/live/events?limit=100')]);
+    if (!statusRes.ok || !eventsRes.ok) throw new Error('Live API request failed');
+    const status = await statusRes.json();
+    const payload = await eventsRes.json();
+    const panel = document.getElementById('live-status-panel');
+    const table = document.getElementById('live-events-table');
+    const note = document.getElementById('live-validation-note');
+    if (!panel || !table || !note) return;
+    const state = status.state || 'stopped';
+    const pillClass = state === 'connected' ? 'text-ok' : (state === 'error' ? 'text-bad' : 'text-warn');
+    const metrics = [
+      ['Connection', state], ['Messages received', status.received_messages ?? 0],
+      ['Events processed', status.processed_events ?? 0], ['Buffered events', status.buffered_events ?? 0]
+    ];
+    panel.innerHTML = metrics.map(([label, value]) => `<div class="rounded-xl border border-line p-4 bg-surface/30"><div class="text-xs text-ink-3">${esc(label)}</div><div class="text-xl font-semibold mt-1 ${label === 'Connection' ? pillClass : 'text-ink'}">${esc(value)}</div></div>`).join('');
+    const details = [
+      `Validation VRPs loaded: ${status.validation_vrp_count ?? 0}`,
+      `Source: ${status.validation_data_source || 'No local VRP source found'}`,
+      `Source timestamp: ${status.validation_data_timestamp || 'unknown'}`,
+      status.last_message_at_utc ? `Last RIS message: ${status.last_message_at_utc}` : 'No RIS message received yet.',
+      status.last_error ? `Last connection note: ${status.last_error}` : ''
+    ].filter(Boolean);
+    note.textContent = `${details.join(' • ')}. ${status.validation_data_note || ''}`;
+    const startBtn = document.getElementById('live-start-btn');
+    const stopBtn = document.getElementById('live-stop-btn');
+    if (startBtn) startBtn.disabled = liveActionBusy || ['connecting', 'connected', 'reconnecting'].includes(state);
+    if (stopBtn) stopBtn.disabled = liveActionBusy || state === 'stopped';
+    const rows = payload.events || [];
+    if (!rows.length) {
+      table.innerHTML = `<div class="p-5 text-center">${state === 'connected' ? 'Connected; waiting for matching RIS Live updates.' : 'No live events buffered. Start monitoring to connect.'}</div>`;
+      return;
+    }
+    table.innerHTML = `<table class="w-full text-left text-xs"><thead><tr class="border-b border-line text-ink-3"><th class="py-3 pr-4">Observed UTC</th><th class="py-3 pr-4">Type</th><th class="py-3 pr-4">Prefix</th><th class="py-3 pr-4">Origin AS</th><th class="py-3 pr-4">RPKI state</th><th class="py-3 pr-4">Peer</th><th class="py-3 pr-4">Collector</th><th class="py-3 pr-4">Reason</th></tr></thead><tbody>${rows.map(e => `<tr class="border-b border-line/60"><td class="py-3 pr-4 whitespace-nowrap">${esc(e.observed_at_utc || '—')}</td><td class="py-3 pr-4">${esc(e.event_type || '—')}</td><td class="py-3 pr-4 font-mono-code">${esc(e.prefix || '—')}</td><td class="py-3 pr-4">${e.origin_as == null ? '—' : `AS${esc(e.origin_as)}`}</td><td class="py-3 pr-4">${esc(e.rpki_state || 'Unassigned')}</td><td class="py-3 pr-4">${esc(e.peer || '—')}</td><td class="py-3 pr-4">${esc(e.collector || '—')}</td><td class="py-3 pr-4 min-w-64">${esc(e.reason || '—')}</td></tr>`).join('')}</tbody></table>`;
+  } catch (error) {
+    const panel = document.getElementById('live-status-panel');
+    if (panel) panel.innerHTML = `<div class="text-bad text-sm">Unable to load live monitor status: ${esc(error.message)}</div>`;
+  }
+}
+
+async function controlLiveMonitor(action) {
+  if (liveActionBusy) return;
+  liveActionBusy = true;
+  try {
+    const response = await fetch(`/api/live/${action}`, { method: 'POST' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    await refreshLiveMonitor();
+  } catch (error) {
+    const note = document.getElementById('live-validation-note');
+    if (note) note.textContent = `Could not ${action} monitoring: ${error.message}`;
+  } finally {
+    liveActionBusy = false;
+    await refreshLiveMonitor();
+  }
+}
+
+// ==========================================
+// VIEW 5: METHODOLOGY
+// ==========================================
+function renderMethodology() {
+  const sens = appData.sensitivity_analysis || {};
+  const sw = appData.study_window || {};
+  const s = appData.summary || {};
+
+  const totalEval = sens.total_events_evaluated ?? s.events ?? '—';
+  const discCount = sens.discrepancy_count ?? 0;
+  const sensPct = (sens.total_events_evaluated && sens.total_events_evaluated > 0)
+    ? ((discCount / sens.total_events_evaluated) * 100).toFixed(1) + '%'
+    : '0.0%';
+
+  const policiesLine = (sens.policies_tested && sens.policies_tested.length > 0)
+    ? `<div>Alternative policies tested: ${esc(sens.policies_tested.join(', '))}</div>`
+    : '';
+
+  return `
+    <div class="space-y-6">
+      <!-- Study Configuration & Pipeline -->
+      <div class="apple-glass p-5 sm:p-6">
+        <h2 class="text-lg font-semibold mb-3.5 text-ink">Study Methodology &amp; Pipeline</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs text-ink-2">
+          <div class="space-y-2.5">
+            <div><strong class="text-ink">Data Ingestion:</strong> RIPE Stat BGP updates API and daily BGP state snapshots for prefix ${esc(s.prefix ?? '193.0.0.0/21')}.</div>
+            <div><strong class="text-ink">Observation Window:</strong> ${esc(cleanTime(sw.start) || '—')} to ${esc(cleanTime(sw.end_exclusive) || '—')} UTC (72h, end exclusive).</div>
+            <div><strong class="text-ink">Event Normalization:</strong> Raw updates mapped into structured records without inferring missing attributes.</div>
+            <div><strong class="text-ink">Path Reconstruction:</strong> Sequential announcements per peer are compared to detect path modifications.</div>
+          </div>
+          <div class="space-y-2.5">
+            <div><strong class="text-ink">Validation Standard:</strong> RFC 6811 and RFC 9582 Prefix Origin Validation.</div>
+            <div><strong class="text-ink">Withdrawal Semantics:</strong> Designated as Unassigned. Origin AS is never inferred from prior announcements.</div>
+            <div><strong class="text-ink">Snapshot Semantics:</strong> Discrete daily samples. Same-day event temporal relationship is ambiguous (&plusmn;24h).</div>
+            <div><strong class="text-ink">Non-Causation Rule:</strong> Path changes are routing dynamics; no causal link to RPKI state is claimed.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Timestamp Policy & Sensitivity Result -->
+      <div class="apple-glass p-5 sm:p-6">
+        <h3 class="text-lg font-semibold mb-2 text-ink">Timestamp policy &amp; sensitivity analysis</h3>
+        <p class="text-xs mb-3.5 text-ink-2">
+          To account for the absence of intra-day timestamp metadata in daily snapshot archives, PathWatch brackets each BGP event with the latest prior snapshot (S_before) and earliest subsequent snapshot (S_after). RPKI origin validation is evaluated against RIPE NCC RPKI validation data current as of the observation query date (2026-10-14), because historical daily ROA table archives were not recorded during the December 2024 test window. Same-day events are explicitly labeled ambiguous.
+        </p>
+        <div class="p-4 rounded-xl font-mono-code text-xs" style="background: var(--callout-bg); border: 1px solid var(--callout-border); color: var(--callout-text);">
+          <div class="font-semibold mb-1.5 text-ink">Policy Sensitivity Evaluation Results:</div>
+          <div>Total events evaluated: ${totalEval}</div>
+          ${policiesLine}
+          <div>Discrepancy count: ${discCount} (${sensPct} sensitivity)</div>
+          <div>Conclusion: ${esc(sens.conclusion || 'No event RPKI validation states change across alternative timestamp policies.')}</div>
+        </div>
+      </div>
+
+      <!-- Security Context Section -->
+      <div class="apple-glass p-5 sm:p-6">
+        <h3 class="text-lg font-semibold mb-2 text-ink">Security Context &amp; Synthetic Scenarios</h3>
+        <p class="text-xs mb-3.5 text-ink-2">
+          ROV verifies origin AS authorization, but does not protect against forged-origin path manipulation (where an unauthorized transit prepends the legitimate ASN). Path validation mechanisms such as BGPsec (RFC 8205) or ASPA are required for transit integrity.
+        </p>
+        <div class="overflow-x-auto rounded-[16px] table-container shadow-sm">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead class="table-sticky-header">
+              <tr class="text-xs uppercase font-mono-code">
+                <th scope="col" class="py-2.5 px-3.5">Scenario</th>
+                <th scope="col" class="py-2.5 px-3.5">Prefix / Origin</th>
+                <th scope="col" class="py-2.5 px-3.5">Expected State</th>
+                <th scope="col" class="py-2.5 px-3.5">ROV Enforcing Action</th>
+                <th scope="col" class="py-2.5 px-3.5">Non-Enforcing Action</th>
+              </tr>
+            </thead>
+            <tbody class="font-mono-code">
+              <tr class="table-divider-row table-row-hover transition-colors">
+                <td class="py-2.5 px-3.5 text-ink">1. Legitimate Valid</td>
+                <td class="py-2.5 px-3.5 text-ink">193.0.0.0/21 AS3333</td>
+                <td class="py-2.5 px-3.5 font-medium text-ok">Valid</td>
+                <td class="py-2.5 px-3.5 text-ink-2">Preferred</td>
+                <td class="py-2.5 px-3.5 text-ink-2">Accepted</td>
+              </tr>
+              <tr class="table-divider-row table-row-hover transition-colors">
+                <td class="py-2.5 px-3.5 text-ink">2. Wrong-Origin Hijack</td>
+                <td class="py-2.5 px-3.5 text-ink">193.0.0.0/21 AS64512</td>
+                <td class="py-2.5 px-3.5 text-bad font-medium">Invalid</td>
+                <td class="py-2.5 px-3.5 text-ink-2">Dropped / Filtered</td>
+                <td class="py-2.5 px-3.5 text-ink-2">May divert traffic</td>
+              </tr>
+              <tr class="table-divider-row table-row-hover transition-colors">
+                <td class="py-2.5 px-3.5 text-ink">3. Sub-prefix Hijack</td>
+                <td class="py-2.5 px-3.5 text-ink">193.0.4.0/24 AS3333</td>
+                <td class="py-2.5 px-3.5 text-bad font-medium">Invalid</td>
+                <td class="py-2.5 px-3.5 text-ink-2">Dropped</td>
+                <td class="py-2.5 px-3.5 text-ink-2">Intercepts via LPM</td>
+              </tr>
+              <tr class="table-divider-row table-row-hover transition-colors">
+                <td class="py-2.5 px-3.5 text-ink">4. No Covering ROA</td>
+                <td class="py-2.5 px-3.5 text-ink">198.51.100.0/24 AS64500</td>
+                <td class="py-2.5 px-3.5 text-warn font-medium">NotFound</td>
+                <td class="py-2.5 px-3.5 text-ink-2">Accepted (unverified)</td>
+                <td class="py-2.5 px-3.5 text-ink-2">Accepted</td>
+              </tr>
+              <tr class="table-divider-row table-row-hover transition-colors">
+                <td class="py-2.5 px-3.5 text-ink">8. Forged-Origin Path</td>
+                <td class="py-2.5 px-3.5 text-ink">193.0.0.0/21 [64512, 3333]</td>
+                <td class="py-2.5 px-3.5 font-medium text-ok">Valid (ROV Blind Spot)</td>
+                <td class="py-2.5 px-3.5 text-ink-2">Accepted (ROV bypassed)</td>
+                <td class="py-2.5 px-3.5 text-ink-2">Accepted</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="mt-2.5 text-xs font-mono-code text-ink-3">
+          5 of 10 scenarios shown, see docs/security-scenarios.md. Synthetic scenarios are test-only and isolated from telemetry analysis.
+        </div>
+      </div>
+
+      <!-- Reproducibility Commands -->
+      <div class="apple-glass p-5 sm:p-6">
+        <h3 class="text-lg font-semibold mb-2 text-ink">Reproducibility Commands</h3>
+        <div class="space-y-2 text-xs font-mono-code text-ink-2">
+          <div class="p-2.5 rounded-lg border border-line bg-surface/40">python src/correlate.py</div>
+          <div class="p-2.5 rounded-lg border border-line bg-surface/40">pytest tests/</div>
+          <div class="p-2.5 rounded-lg border border-line bg-surface/40">python app.py</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Kickoff
+document.addEventListener('DOMContentLoaded', () => {
+  initData();
+});
+</script>
+
+</body>
+</html>
