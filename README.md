@@ -6,6 +6,18 @@
 **Institution:** National Forensic Science University (NFSU), Guwahati Campus  
 **Project Status:** Working MVP — historical RPKI state correlation pending
 
+## Important: Submitted Implementation
+
+The hackathon submission and its corresponding implementation are maintained in the **`integration/flask-frontend`** branch.
+
+The `main` branch does not currently contain the complete submitted implementation. To review the actual submitted code, switch to the `integration/flask-frontend` branch.
+
+**Submitted implementation:**  
+https://github.com/aiori-hackathon/A3-PS032-TC538/tree/integration/flask-frontend
+
+**Live deployment:**  
+https://a3-ps032-tc538.onrender.com
+
 ## Overview
 
 RPKI-PathWatch is an Internet measurement prototype for analyzing Border Gateway Protocol (BGP) route observations, announcements, withdrawals, and AS-path changes in the context of Resource Public Key Infrastructure (RPKI) validation.
