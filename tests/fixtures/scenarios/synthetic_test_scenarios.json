@@ -1,0 +1,193 @@
+{
+  "notice": "SYNTHETIC TEST SCENARIOS ONLY - NOT OBSERVED DATA",
+  "synthetic": true,
+  "scenarios": [
+    {
+      "id": 1,
+      "name": "legitimate_valid_announcement",
+      "synthetic": true,
+      "prefix": "193.0.0.0/21",
+      "as_path": [174, 3333],
+      "event_type": "A",
+      "vrps": [
+        {
+          "asn": 3333,
+          "prefix": "193.0.0.0/21",
+          "max_length": 21
+        }
+      ],
+      "expected_state": "Valid",
+      "expected_origin_as": 3333
+    },
+    {
+      "id": 2,
+      "name": "wrong_origin_hijack",
+      "synthetic": true,
+      "prefix": "193.0.0.0/21",
+      "as_path": [174, 64512],
+      "event_type": "A",
+      "vrps": [
+        {
+          "asn": 3333,
+          "prefix": "193.0.0.0/21",
+          "max_length": 21
+        }
+      ],
+      "expected_state": "Invalid",
+      "expected_subreason": "WrongOrigin",
+      "expected_origin_as": 64512
+    },
+    {
+      "id": 3,
+      "name": "more_specific_exceeding_max_length",
+      "synthetic": true,
+      "prefix": "193.0.4.0/24",
+      "as_path": [174, 3333],
+      "event_type": "A",
+      "vrps": [
+        {
+          "asn": 3333,
+          "prefix": "193.0.0.0/21",
+          "max_length": 21
+        }
+      ],
+      "expected_state": "Invalid",
+      "expected_subreason": "MaxLengthExceeded",
+      "expected_origin_as": 3333
+    },
+    {
+      "id": 4,
+      "name": "no_covering_roa",
+      "synthetic": true,
+      "prefix": "198.51.100.0/24",
+      "as_path": [174, 64500],
+      "event_type": "A",
+      "vrps": [
+        {
+          "asn": 3333,
+          "prefix": "193.0.0.0/21",
+          "max_length": 21
+        }
+      ],
+      "expected_state": "NotFound",
+      "expected_origin_as": 64500
+    },
+    {
+      "id": 5,
+      "name": "roa_expired_or_not_yet_valid",
+      "synthetic": true,
+      "prefix": "193.0.0.0/21",
+      "as_path": [174, 3333],
+      "event_type": "A",
+      "reference_time": "2024-12-21T12:00:00Z",
+      "vrps": [
+        {
+          "asn": 3333,
+          "prefix": "193.0.0.0/21",
+          "max_length": 21,
+          "not_before": "2024-01-01T00:00:00Z",
+          "not_after": "2024-06-01T00:00:00Z"
+        }
+      ],
+      "expected_state": "NotFound",
+      "expected_origin_as": 3333,
+      "document_reason": "Expired ROA creates no active VRP at reference time; hence no active covering ROA exists, yielding NotFound"
+    },
+    {
+      "id": 6,
+      "name": "roa_removed_across_snapshots",
+      "synthetic": true,
+      "prefix": "193.0.0.0/21",
+      "as_path": [174, 3333],
+      "event_type": "A",
+      "snapshot_1_vrps": [
+        {
+          "asn": 3333,
+          "prefix": "193.0.0.0/21",
+          "max_length": 21
+        }
+      ],
+      "snapshot_2_vrps": [],
+      "expected_state_snap1": "Valid",
+      "expected_state_snap2": "NotFound",
+      "expected_origin_as": 3333
+    },
+    {
+      "id": 7,
+      "name": "roa_tightened_across_snapshots",
+      "synthetic": true,
+      "prefix": "193.0.2.0/23",
+      "as_path": [174, 3333],
+      "event_type": "A",
+      "snapshot_1_vrps": [
+        {
+          "asn": 3333,
+          "prefix": "193.0.0.0/21",
+          "max_length": 24
+        }
+      ],
+      "snapshot_2_vrps": [
+        {
+          "asn": 3333,
+          "prefix": "193.0.0.0/21",
+          "max_length": 22
+        }
+      ],
+      "expected_state_snap1": "Valid",
+      "expected_state_snap2": "Invalid",
+      "expected_origin_as": 3333
+    },
+    {
+      "id": 8,
+      "name": "forged_origin_path_manipulation",
+      "synthetic": true,
+      "prefix": "193.0.0.0/21",
+      "as_path": [64512, 3333],
+      "event_type": "A",
+      "vrps": [
+        {
+          "asn": 3333,
+          "prefix": "193.0.0.0/21",
+          "max_length": 21
+        }
+      ],
+      "expected_state": "Valid",
+      "expected_origin_as": 3333,
+      "document_reason": "ROV inspects only the terminal origin AS; the forged upstream transit AS64512 bypasses origin validation"
+    },
+    {
+      "id": 9,
+      "name": "withdrawal_event",
+      "synthetic": true,
+      "prefix": "193.0.0.0/21",
+      "as_path": null,
+      "event_type": "W",
+      "vrps": [
+        {
+          "asn": 3333,
+          "prefix": "193.0.0.0/21",
+          "max_length": 21
+        }
+      ],
+      "expected_state": "Unassigned",
+      "expected_origin_as": null
+    },
+    {
+      "id": 10,
+      "name": "malformed_as_path",
+      "synthetic": true,
+      "prefix": "193.0.0.0/21",
+      "as_path": [174, "{3333,4444}"],
+      "event_type": "A",
+      "vrps": [
+        {
+          "asn": 3333,
+          "prefix": "193.0.0.0/21",
+          "max_length": 21
+        }
+      ],
+      "expected_state": "Unassigned",
+      "expected_origin_as": null
+    }
+  ]
+}
